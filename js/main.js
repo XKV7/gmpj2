@@ -22,9 +22,54 @@ canvas.addEventListener('click', e => {
   input.clicked = false;
 });
 
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const touch = e.touches[0];
+  const r = canvas.getBoundingClientRect();
+  input.mx = (touch.clientX - r.left) * (800 / r.width);
+  input.my = (touch.clientY - r.top)  * (600 / r.height);
+}, { passive: false });
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const touch = e.touches[0];
+  const r = canvas.getBoundingClientRect();
+  input.mx = (touch.clientX - r.left) * (800 / r.width);
+  input.my = (touch.clientY - r.top)  * (600 / r.height);
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  const touch = e.changedTouches[0];
+  const r = canvas.getBoundingClientRect();
+  input.mx = (touch.clientX - r.left) * (800 / r.width);
+  input.my = (touch.clientY - r.top)  * (600 / r.height);
+  input.clicked = true;
+  handleClick();
+  input.clicked = false;
+}, { passive: false });
+
+// ─────────────── ANIMATION UPDATE ───────────────
+function updateBattleAnim(b) {
+  const a = b.anim;
+  const lerp = (cur, tgt) => Math.abs(cur - tgt) < 0.5 ? tgt : cur + (tgt - cur) * 0.14;
+  a.playerHpDisplay = lerp(a.playerHpDisplay, b.player.currentHp);
+  a.enemyHpDisplay  = lerp(a.enemyHpDisplay,  b.enemy.currentHp);
+  if (a.playerFlash > 0) a.playerFlash--;
+  if (a.enemyFlash  > 0) a.enemyFlash--;
+  if (a.shake       > 0) a.shake--;
+  a.damageNums = a.damageNums.filter(d => d.alpha > 0);
+  for (const d of a.damageNums) {
+    d.y  += d.vy;
+    d.vy *= 0.84;
+    d.alpha -= 0.022;
+  }
+}
+
 // ─────────────── GAME LOOP ───────────────
 function loop() {
   ctx.clearRect(0, 0, 800, 600);
+  if (GS.screen === 'BATTLE' && GS.battle) updateBattleAnim(GS.battle);
   switch (GS.screen) {
     case 'TITLE':          renderTitle(ctx, input);         break;
     case 'STARTER_SELECT': renderStarterSelect(ctx, input); break;
@@ -318,6 +363,22 @@ function doAttack(b, attacker, defender, move, afterFn) {
 
   const { damage, isCrit, typeM } = calculateDamage(attacker, defender, move);
   defender.currentHp = Math.max(0, defender.currentHp - damage);
+
+  // Animation: flash hit target, shake screen, float damage number
+  if (b.anim) {
+    const hitEnemy = (defender === b.enemy);
+    if (hitEnemy) {
+      b.anim.enemyFlash = 9;
+      b.anim.shake = 10;
+      b.anim.damageNums.push({ x: 640, y: 148, val: damage, alpha: 1, vy: -2,
+        color: typeM >= 2 ? '#ffdd44' : typeM === 0 ? '#666688' : isCrit ? '#ff9944' : '#ffffff' });
+    } else {
+      b.anim.playerFlash = 9;
+      b.anim.shake = 10;
+      b.anim.damageNums.push({ x: 160, y: 265, val: damage, alpha: 1, vy: -2,
+        color: typeM >= 2 ? '#ffdd44' : typeM === 0 ? '#666688' : isCrit ? '#ff9944' : '#ffffff' });
+    }
+  }
 
   if (typeM >= 2)           msgs.push('효과가 뛰어나다!');
   if (typeM <= 0)           msgs.push('효과가 없는 것 같다...');

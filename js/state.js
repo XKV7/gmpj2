@@ -103,18 +103,28 @@ const GS = {
 function createBattle(playerPocket, enemy, isWild, trainer) {
   return {
     phase: 'PLAYER_ACTION',
-    // PLAYER_ACTION | MOVE_SELECT | SWITCH_SELECT | BALL_SELECT
-    // MESSAGING | ENEMY_TURN | END
     player: playerPocket,
     enemy,
     isWild,
-    trainer,           // null for wild
+    trainer,
     trainerPartyIdx: 0,
     messages: [],
-    pendingAfterMsg: null,  // callback after message queue clears
-    result: null,           // 'win' | 'lose' | 'flee' | 'catch'
-    expPending: [],         // { pocket, amount }
-    fleeAttempts: 0
+    pendingAfterMsg: null,
+    result: null,
+    fleeAttempts: 0,
+    _moveLearning: null,
+    _pendingCatch: null,
+    // ── animation state ──
+    anim: {
+      playerHpDisplay: playerPocket.currentHp,
+      playerHpTarget:  playerPocket.currentHp,
+      enemyHpDisplay:  enemy.currentHp,
+      enemyHpTarget:   enemy.currentHp,
+      playerFlash: 0,
+      enemyFlash:  0,
+      shake: 0,
+      damageNums: []   // { x, y, val, alpha, vy, color }
+    }
   };
 }
 

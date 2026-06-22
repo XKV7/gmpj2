@@ -58,7 +58,7 @@ function drawButton(ctx, x, y, w, h, label, hovered, color = '#223344', textColo
   ctx.fillText(label, x + w / 2, y + h / 2);
 }
 
-function drawPocketSprite(ctx, x, y, radius, pocket, flip = false) {
+function drawPocketSprite(ctx, x, y, radius, pocket, flip = false, flash = 0) {
   const color = pocket.species.color;
   // Shadow
   ctx.save();
@@ -89,6 +89,17 @@ function drawPocketSprite(ctx, x, y, radius, pocket, flip = false) {
   ctx.textBaseline = 'middle';
   ctx.fillText(pocket.species.emoji, x, y + 2);
   ctx.restore();
+
+  // Flash hit effect
+  if (flash > 0 && flash % 2 === 0) {
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 
   // Status indicator
   if (pocket.status) {
@@ -356,6 +367,9 @@ function renderBattle(ctx, input) {
 }
 
 function renderBattleArena(ctx, b) {
+  const a = b.anim;
+  const shakeOff = a.shake > 0 ? Math.sin(a.shake * 1.5) * 3 : 0;
+
   // Sky/ground
   const sky = ctx.createLinearGradient(0, 0, 0, ARENA_H);
   sky.addColorStop(0, '#0a0a20');
@@ -375,23 +389,37 @@ function renderBattleArena(ctx, b) {
   ctx.fillStyle = '#4a6020';
   ctx.fillRect(520, 136, 280, 8);
 
-  // Enemy pocket
+  // Enemy pocket (shakes when hit)
   if (b.enemy && b.enemy.currentHp > 0) {
-    drawPocketSprite(ctx, 640, 160, 55, b.enemy, false);
+    drawPocketSprite(ctx, 640 + (a.enemyFlash > 0 ? shakeOff : 0), 160, 55, b.enemy, false, a.enemyFlash);
   }
-  // Player pocket
+  // Player pocket (shakes when hit)
   if (b.player && b.player.currentHp > 0) {
-    drawPocketSprite(ctx, 160, 290, 55, b.player, true);
+    drawPocketSprite(ctx, 160 + (a.playerFlash > 0 ? -shakeOff : 0), 290, 55, b.player, true, a.playerFlash);
+  }
+
+  // Floating damage numbers
+  for (const d of a.damageNums) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, d.alpha);
+    ctx.fillStyle = d.color;
+    ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+    ctx.lineWidth = 3;
+    ctx.font = 'bold 14px "Press Start 2P"';
+    ctx.textAlign = 'center';
+    ctx.strokeText(d.val, d.x, d.y);
+    ctx.fillText(d.val, d.x, d.y);
+    ctx.restore();
   }
 
   // Enemy info box (top-left)
-  renderInfoBox(ctx, b.enemy, 30, 20, false);
+  renderInfoBox(ctx, b.enemy, 30, 20, false, a.enemyHpDisplay);
 
   // Player info box (bottom-right)
-  renderInfoBox(ctx, b.player, 450, 240, true);
+  renderInfoBox(ctx, b.player, 450, 240, true, a.playerHpDisplay);
 }
 
-function renderInfoBox(ctx, pocket, x, y, showExp) {
+function renderInfoBox(ctx, pocket, x, y, showExp, displayHp) {
   if (!pocket) return;
   const w = 300, h = showExp ? 88 : 70;
   fillRoundRect(ctx, x, y, w, h, 6, 'rgba(10,10,20,0.85)', '#334455');
@@ -405,14 +433,15 @@ function renderInfoBox(ctx, pocket, x, y, showExp) {
   ctx.font = '9px "Press Start 2P"';
   ctx.fillText(`Lv.${pocket.level}`, x + w - 70, y + 20);
 
+  const hpShown = (displayHp !== undefined) ? displayHp : pocket.currentHp;
   ctx.fillStyle = '#88aacc';
   ctx.font = '8px "Press Start 2P"';
   ctx.fillText('HP', x + 10, y + 38);
-  drawHpBar(ctx, x + 30, y + 30, 220, 10, pocket.currentHp / pocket.maxHp);
+  drawHpBar(ctx, x + 30, y + 30, 220, 10, hpShown / pocket.maxHp);
 
   ctx.fillStyle = '#778899';
   ctx.font = '7px "Press Start 2P"';
-  ctx.fillText(`${pocket.currentHp}/${pocket.maxHp}`, x + 260, y + 40);
+  ctx.fillText(`${Math.ceil(hpShown)}/${pocket.maxHp}`, x + 260, y + 40);
 
   if (showExp) {
     ctx.fillStyle = '#6688aa';
