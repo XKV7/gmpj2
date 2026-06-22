@@ -42,6 +42,7 @@ function createPocketInstance(speciesId, level, isWild = false) {
     maxHp: stats.hp,
     currentHp: stats.hp,
     status: null,
+    badlyPoisonedTurns: 0,
     moves: moveNames.map(n => ({ ...MOVES_DB[n], currentPp: MOVES_DB[n].pp })),
     isWild
   };
@@ -76,6 +77,12 @@ function applyStatusDamage(pocket) {
     const dmg = Math.max(1, Math.floor(pocket.maxHp / 8));
     pocket.currentHp = Math.max(0, pocket.currentHp - dmg);
     msgs.push(`${pocket.species.name}은(는) 독으로 ${dmg}의 피해를 받았다!`);
+  } else if (pocket.status === '맹독') {
+    const turns = pocket.badlyPoisonedTurns || 1;
+    const dmg = Math.max(1, Math.floor(pocket.maxHp * turns / 16));
+    pocket.currentHp = Math.max(0, pocket.currentHp - dmg);
+    pocket.badlyPoisonedTurns = Math.min(8, turns + 1);
+    msgs.push(`${pocket.species.name}은(는) 맹독으로 ${dmg}의 피해를 받았다! (${turns}/8턴)`);
   } else if (pocket.status === '화상') {
     const dmg = Math.max(1, Math.floor(pocket.maxHp / 16));
     pocket.currentHp = Math.max(0, pocket.currentHp - dmg);
@@ -89,6 +96,7 @@ function tryApplyEffect(move, target) {
   if (target.status) return null;
   if (Math.random() < move.effect.chance) {
     target.status = move.effect.status;
+    if (move.effect.status === '맹독') target.badlyPoisonedTurns = 1;
     return `${target.species.name}은(는) ${move.effect.status} 상태가 됐다!`;
   }
   return null;
@@ -136,19 +144,19 @@ function applyExp(pocket, amount) {
       ? (Array.isArray(learnset[pocket.level]) ? learnset[pocket.level] : [learnset[pocket.level]])
       : [];
 
-    results.push({ level: pocket.level, newMoveNames });
+    const autoLearn = [];
+    const choiceMoves = [];  // 4칸 꽉 찼을 때 플레이어 선택 필요
 
     for (const mn of newMoveNames) {
-      const existing = pocket.moves.find(m => m.name === MOVES_DB[mn].name);
-      if (!existing) {
-        if (pocket.moves.length < 4) {
-          pocket.moves.push({ ...MOVES_DB[mn], currentPp: MOVES_DB[mn].pp });
-        } else {
-          pocket.moves.shift();
-          pocket.moves.push({ ...MOVES_DB[mn], currentPp: MOVES_DB[mn].pp });
-        }
+      if (pocket.moves.find(m => m.name === MOVES_DB[mn].name)) continue;
+      if (pocket.moves.length < 4) {
+        pocket.moves.push({ ...MOVES_DB[mn], currentPp: MOVES_DB[mn].pp });
+        autoLearn.push(mn);
+      } else {
+        choiceMoves.push(mn);
       }
     }
+    results.push({ level: pocket.level, autoLearn, choiceMoves });
   }
   return results;
 }

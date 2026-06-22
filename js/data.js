@@ -6,17 +6,18 @@ const TYPE_CHART = {
   전기:   { 물: 2, 전기: 0.5, 풀: 0.5, 땅: 0, 비행: 2, 드래곤: 0.5 },
   풀:     { 불꽃: 0.5, 물: 2, 풀: 0.5, 독: 0.5, 땅: 2, 비행: 0.5, 벌레: 0.5, 바위: 2, 드래곤: 0.5, 강철: 0.5 },
   얼음:   { 불꽃: 0.5, 물: 0.5, 풀: 2, 얼음: 0.5, 땅: 2, 비행: 2, 드래곤: 2, 강철: 0.5 },
-  격투:   { 노말: 2, 얼음: 2, 독: 0.5, 비행: 0.5, 에스퍼: 0.5, 벌레: 0.5, 바위: 2, 고스트: 0, 악: 2, 강철: 2 },
-  독:     { 풀: 2, 독: 0.5, 땅: 0.5, 벌레: 0.5, 바위: 0.5, 고스트: 0.5, 강철: 0 },
+  격투:   { 노말: 2, 얼음: 2, 독: 0.5, 비행: 0.5, 에스퍼: 0.5, 벌레: 0.5, 바위: 2, 고스트: 0, 악: 2, 강철: 2, 페어리: 0.5 },
+  독:     { 풀: 2, 독: 0.5, 땅: 0.5, 벌레: 0.5, 바위: 0.5, 고스트: 0.5, 강철: 0, 페어리: 2 },
   땅:     { 불꽃: 2, 전기: 2, 풀: 0.5, 독: 2, 비행: 0, 벌레: 0.5, 바위: 2, 강철: 2 },
   비행:   { 전기: 0.5, 풀: 2, 격투: 2, 벌레: 2, 바위: 0.5, 강철: 0.5 },
   에스퍼: { 격투: 2, 독: 2, 에스퍼: 0.5, 악: 0, 강철: 0.5 },
-  벌레:   { 불꽃: 0.5, 풀: 2, 격투: 0.5, 독: 0.5, 비행: 0.5, 에스퍼: 2, 고스트: 0.5, 악: 2, 강철: 0.5 },
+  벌레:   { 불꽃: 0.5, 풀: 2, 격투: 0.5, 독: 0.5, 비행: 0.5, 에스퍼: 2, 고스트: 0.5, 악: 2, 강철: 0.5, 페어리: 0.5 },
   바위:   { 불꽃: 2, 얼음: 2, 격투: 0.5, 땅: 0.5, 비행: 2, 벌레: 2, 강철: 0.5 },
   고스트: { 노말: 0, 에스퍼: 2, 고스트: 2, 악: 0.5 },
-  드래곤: { 드래곤: 2, 강철: 0.5 },
-  악:     { 격투: 0.5, 에스퍼: 2, 고스트: 2, 악: 0.5 },
-  강철:   { 불꽃: 0.5, 물: 0.5, 전기: 0.5, 얼음: 2, 바위: 2, 강철: 0.5 }
+  드래곤: { 드래곤: 2, 강철: 0.5, 페어리: 0 },
+  악:     { 격투: 0.5, 에스퍼: 2, 고스트: 2, 악: 0.5, 페어리: 0.5 },
+  강철:   { 불꽃: 0.5, 물: 0.5, 전기: 0.5, 얼음: 2, 바위: 2, 강철: 0.5, 페어리: 2 },
+  페어리: { 불꽃: 0.5, 독: 0.5, 강철: 0.5, 격투: 2, 드래곤: 2, 악: 2 }
 };
 
 function getTypeMultiplier(attackType, defTypes) {
@@ -28,6 +29,7 @@ const TYPE_COLORS = {
   노말: '#9A9A78', 불꽃: '#E8622A', 물: '#4A7CF5', 전기: '#E8C000',
   풀: '#5AAA30', 얼음: '#70C8C8', 격투: '#A02020', 독: '#8830A0',
   땅: '#C8A048', 비행: '#8878E8', 에스퍼: '#E84070', 벌레: '#88A010',
+  페어리: '#EE88DD',
   바위: '#A08020', 고스트: '#503878', 드래곤: '#5820E8', 악: '#503830', 강철: '#9898B8'
 };
 
@@ -81,7 +83,14 @@ const MOVES_DB = {
   물어뜯기:    { name: '물어뜯기',       type: '악',     power: 60,  accuracy: 100, pp: 25, category: 'physical', effect: null },
   아이언헤드:  { name: '아이언헤드',     type: '강철',   power: 80,  accuracy: 100, pp: 15, category: 'physical', effect: null },
   강철날개:    { name: '강철날개',       type: '강철',   power: 70,  accuracy: 90,  pp: 25, category: 'physical', effect: null },
-  발버둥:      { name: '발버둥',         type: '노말',   power: 50,  accuracy: 100, pp: 999, category: 'physical', effect: null, isStruggle: true }
+  발버둥:      { name: '발버둥',         type: '노말',   power: 50,  accuracy: 100, pp: 999, category: 'physical', effect: null, isStruggle: true },
+  // 맹독
+  독독:        { name: '독독',           type: '독',     power: 0,   accuracy: 90,  pp: 10, category: 'status',   effect: { status: '맹독', chance: 1.0 } },
+  // 페어리
+  페어리윈드:  { name: '페어리윈드',     type: '페어리', power: 40,  accuracy: 100, pp: 30, category: 'special',  effect: null },
+  문포스:      { name: '문포스',         type: '페어리', power: 95,  accuracy: 100, pp: 15, category: 'special',  effect: null },
+  매지컬샤인:  { name: '매지컬샤인',     type: '페어리', power: 80,  accuracy: 100, pp: 10, category: 'special',  effect: null },
+  나이트슬래시:{ name: '나이트슬래시',   type: '페어리', power: 70,  accuracy: 100, pp: 15, category: 'physical', effect: null }
 };
 
 // ─────────────── SPECIES ───────────────
@@ -175,6 +184,18 @@ const SPECIES_DB = {
     baseStats: { hp: 65, atk: 65, def: 60, spAtk: 130, spDef: 95, speed: 110 },
     baseExp: 160, catchRate: 0.15, color: '#E84070', emoji: '🔮',
     learnset: { 1: ['할퀴기', '빠른공격'], 10: ['사이코쇼크'], 20: ['사이코키네시스'], 30: ['암흑파'], 40: ['하이퍼빔'] }
+  },
+  요정: {
+    id: 16, name: '요정', types: ['페어리'],
+    baseStats: { hp: 68, atk: 42, def: 62, spAtk: 108, spDef: 92, speed: 78 },
+    baseExp: 135, catchRate: 0.20, color: '#EE88DD', emoji: '✨',
+    learnset: { 1: ['페어리윈드', '빠른공격'], 12: ['매지컬샤인'], 24: ['문포스'], 36: ['독독'], 45: ['하이퍼빔'] }
+  },
+  엔젤: {
+    id: 17, name: '엔젤', types: ['페어리', '비행'],
+    baseStats: { hp: 52, atk: 38, def: 52, spAtk: 98, spDef: 88, speed: 92 },
+    baseExp: 118, catchRate: 0.25, color: '#FFAAE0', emoji: '🧚',
+    learnset: { 1: ['날개치기', '페어리윈드'], 10: ['에어슬래시'], 20: ['매지컬샤인'], 32: ['문포스'], 42: ['하이퍼빔'] }
   }
 };
 
@@ -195,7 +216,8 @@ const WILD_AREAS = {
     { speciesId: '윙글',   minLv: 2,  maxLv: 8  },
     { speciesId: '독침이', minLv: 2,  maxLv: 8  },
     { speciesId: '리프트', minLv: 3,  maxLv: 8  },
-    { speciesId: '볼티',   minLv: 3,  maxLv: 8  }
+    { speciesId: '볼티',   minLv: 3,  maxLv: 8  },
+    { speciesId: '엔젤',   minLv: 3,  maxLv: 9  }
   ],
   '화산 동굴': [
     { speciesId: '플라무', minLv: 10, maxLv: 20 },
@@ -208,7 +230,8 @@ const WILD_AREAS = {
   ],
   '유령 숲': [
     { speciesId: '고스파',  minLv: 20, maxLv: 35 },
-    { speciesId: '고블린',  minLv: 20, maxLv: 32 }
+    { speciesId: '고블린',  minLv: 20, maxLv: 32 },
+    { speciesId: '요정',    minLv: 18, maxLv: 30 }
   ],
   '드래곤 산맥': [
     { speciesId: '드라코',   minLv: 35, maxLv: 55 },
@@ -228,5 +251,5 @@ const POKEBALLS = {
 };
 
 const STATUS_COLORS = {
-  독: '#A040A0', 화상: '#E86020', 마비: '#E8C000', 혼란: '#F080C0'
+  독: '#A040A0', 맹독: '#6600CC', 화상: '#E86020', 마비: '#E8C000', 혼란: '#F080C0'
 };

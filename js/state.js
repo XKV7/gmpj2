@@ -40,6 +40,7 @@ const GS = {
         exp: p.exp,
         currentHp: p.currentHp,
         status: p.status,
+        badlyPoisonedTurns: p.badlyPoisonedTurns || 0,
         moves: p.moves.map(m => ({ name: m.name, currentPp: m.currentPp }))
       })),
       activePocketIdx: this.player.activePocketIdx,
@@ -60,6 +61,7 @@ const GS = {
         p.exp = pd.exp;
         p.currentHp = pd.currentHp;
         p.status = pd.status;
+        p.badlyPoisonedTurns = pd.badlyPoisonedTurns || 0;
         // restore PP
         for (let i = 0; i < p.moves.length && i < pd.moves.length; i++) {
           const sv = pd.moves.find(m => m.name === p.moves[i].name);

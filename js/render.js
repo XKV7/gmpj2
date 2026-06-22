@@ -429,19 +429,20 @@ function renderInfoBox(ctx, pocket, x, y, showExp) {
 }
 
 function renderBattlePanel(ctx, input, b) {
-  // Panel background
   fillRoundRect(ctx, 0, PANEL_Y, 800, 600 - PANEL_Y, 0, '#0a1018', '#334455');
   ctx.strokeStyle = '#445566';
   ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(0, PANEL_Y); ctx.lineTo(800, PANEL_Y); ctx.stroke();
 
   switch (b.phase) {
-    case 'PLAYER_ACTION': renderActionMenu(ctx, input, b);     break;
-    case 'MOVE_SELECT':   renderMoveMenu(ctx, input, b);       break;
-    case 'SWITCH_SELECT': renderSwitchMenu(ctx, input, b);     break;
-    case 'BALL_SELECT':   renderBallMenu(ctx, input, b);       break;
-    case 'MESSAGING':     renderMessagePhase(ctx, input, b);   break;
-    case 'END':           renderBattleEnd(ctx, input, b);      break;
+    case 'PLAYER_ACTION':    renderActionMenu(ctx, input, b);        break;
+    case 'MOVE_SELECT':      renderMoveMenu(ctx, input, b);          break;
+    case 'SWITCH_SELECT':    renderSwitchMenu(ctx, input, b);        break;
+    case 'BALL_SELECT':      renderBallMenu(ctx, input, b);          break;
+    case 'MESSAGING':        renderMessagePhase(ctx, input, b);      break;
+    case 'MOVE_LEARN':       renderMoveLearn(ctx, input, b);         break;
+    case 'PARTY_FULL_CATCH': renderPartyFullCatch(ctx, input, b);    break;
+    case 'END':              renderBattleEnd(ctx, input, b);         break;
   }
 }
 
@@ -626,6 +627,114 @@ function renderMessagePhase(ctx, input, b) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   ctx.fillText('클릭하여 계속', 400, PANEL_Y + 160);
+}
+
+// ─────────────── MOVE LEARN UI ───────────────
+function renderMoveLearn(ctx, input, b) {
+  const ml = b._moveLearning;
+  if (!ml) return;
+  const newMove = MOVES_DB[ml.newMoveName];
+  const pocket  = ml.pocket;
+
+  fillRoundRect(ctx, 10, PANEL_Y + 8, 780, 254, 8, '#0a1428', '#4488cc');
+
+  ctx.fillStyle = '#aaddff';
+  ctx.font = '9px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(`${pocket.species.name}이(가) 새 기술을 배울 수 있다!`, 400, PANEL_Y + 28);
+
+  // New move info panel
+  const tc = TYPE_COLORS[newMove.type] || '#888';
+  fillRoundRect(ctx, 20, PANEL_Y + 34, 760, 40, 6, tc + '33', tc);
+  ctx.fillStyle = '#fff';
+  ctx.font = '9px "Press Start 2P"';
+  ctx.textAlign = 'left';
+  ctx.fillText(`NEW ▶ ${newMove.name}`, 34, PANEL_Y + 58);
+  drawTypeBadge(ctx, 560, PANEL_Y + 38, newMove.type);
+  ctx.fillStyle = '#ddeeff';
+  ctx.font = '7px "Press Start 2P"';
+  ctx.fillText(`위력:${newMove.power || '-'}  PP:${newMove.pp}  ${newMove.category === 'physical' ? '물리' : newMove.category === 'status' ? '변화' : '특수'}`, 640, PANEL_Y + 58);
+
+  // Current moves (selectable to forget)
+  pocket.moves.forEach((m, i) => {
+    const by = PANEL_Y + 82 + i * 34;
+    const isH = input.isHover(40, by, 720, 30);
+    const mc = TYPE_COLORS[m.type] || '#888';
+    fillRoundRect(ctx, 40, by, 720, 30, 4, isH ? mc + '55' : '#111a28', isH ? mc : '#445566');
+    ctx.fillStyle = isH ? '#fff' : '#ccdde8';
+    ctx.font = '8px "Press Start 2P"';
+    ctx.textAlign = 'left';
+    ctx.fillText(`${m.name}`, 54, by + 21);
+    drawTypeBadge(ctx, 540, by + 6, m.type);
+    ctx.fillStyle = '#aabbcc';
+    ctx.font = '7px "Press Start 2P"';
+    ctx.fillText(`위력:${m.power || '-'}  PP:${m.currentPp}/${m.pp}`, 620, by + 21);
+    if (isH) {
+      ctx.fillStyle = '#ffdd88';
+      ctx.font = '7px "Press Start 2P"';
+      ctx.textAlign = 'right';
+      ctx.fillText('← 잊는다', 754, by + 21);
+    }
+  });
+
+  // Skip button
+  const skipY = PANEL_Y + 222;
+  drawButton(ctx, 30, skipY, 740, 34, '배우지 않기',
+    input.isHover(30, skipY, 740, 34), '#220a0a', '#ff9977');
+}
+
+// ─────────────── PARTY FULL CATCH UI ───────────────
+function renderPartyFullCatch(ctx, input, b) {
+  const caught = b._pendingCatch;
+  if (!caught) return;
+
+  fillRoundRect(ctx, 10, PANEL_Y + 8, 780, 254, 8, '#0a1a0a', '#44aa44');
+
+  ctx.fillStyle = '#aaffcc';
+  ctx.font = '8px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  ctx.fillText(`파티가 가득 찼다! ${caught.species.name}을(를) 어떻게 할까요?`, 400, PANEL_Y + 28);
+
+  // Caught pocket info
+  const cc = caught.species.color;
+  fillRoundRect(ctx, 20, PANEL_Y + 34, 760, 38, 6, cc + '33', cc);
+  ctx.font = '16px serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(caught.species.emoji, 30, PANEL_Y + 62);
+  ctx.fillStyle = '#fff';
+  ctx.font = '9px "Press Start 2P"';
+  ctx.fillText(`${caught.species.name}  Lv.${caught.level}`, 58, PANEL_Y + 56);
+  caught.species.types.forEach((t, ti) => drawTypeBadge(ctx, 600 + ti * 64, PANEL_Y + 40, t));
+
+  // Party members (selectable to replace)
+  const cols = 3;
+  GS.player.party.forEach((p, i) => {
+    const px = 30 + (i % cols) * 255;
+    const py = PANEL_Y + 80 + Math.floor(i / cols) * 72;
+    const isH = input.isHover(px, py, 245, 62);
+    fillRoundRect(ctx, px, py, 245, 62, 5, isH ? '#1a3a1a' : '#0d1a0d', isH ? '#55cc55' : '#335533');
+
+    ctx.font = '16px serif';
+    ctx.fillText(p.species.emoji, px + 6, py + 40);
+    ctx.fillStyle = '#ddeedd';
+    ctx.font = '8px "Press Start 2P"';
+    ctx.fillText(`${p.species.name} Lv.${p.level}`, px + 34, py + 22);
+    ctx.fillStyle = '#88aa88';
+    ctx.font = '7px "Press Start 2P"';
+    ctx.fillText(`${p.currentHp}/${p.maxHp}`, px + 34, py + 36);
+    drawHpBar(ctx, px + 34, py + 43, 180, 7, p.currentHp / p.maxHp);
+    if (isH) {
+      ctx.fillStyle = '#88ff88';
+      ctx.font = '7px "Press Start 2P"';
+      ctx.textAlign = 'right';
+      ctx.fillText('교체', px + 238, py + 22);
+    }
+  });
+
+  // Release button
+  drawButton(ctx, 30, PANEL_Y + 222, 740, 34, '포획한 포켓을 방생하기',
+    input.isHover(30, PANEL_Y + 222, 740, 34), '#220000', '#ff8866');
 }
 
 function renderBattleEnd(ctx, input, b) {
