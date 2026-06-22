@@ -194,25 +194,29 @@ function handleBallClick(b) {
 
 function handleEndClick(b) {
   if (input.wasClicked(250, PANEL_Y + 140, 300, 50)) {
-    if (b.result === 'catch') {
-      // Pocket was already added on catch
-    }
     if (b.result === 'lose') {
-      healPartyToOne();
+      // Save final party snapshot for game over screen, then wipe save
+      GS._gameOverParty = GS.player.party.map(p => ({
+        name: p.species.name, emoji: p.species.emoji, color: p.species.color,
+        level: p.level, maxHp: p.maxHp, status: p.status,
+        types: p.species.types
+      }));
+      GS._gameOverArea = GS.currentArea();
+      GS._gameOverTrainers = GS.player.defeatedTrainers.size;
+      localStorage.removeItem(SAVE_KEY);
+      GS.battle = null;
+      GS.screen = 'GAMEOVER';
+      return;
     }
     GS.battle = null;
-    if (GS.allPartyFainted()) {
-      GS.screen = 'GAMEOVER';
-    } else {
-      GS.screen = 'WORLD';
-      GS.save();
-    }
+    GS.screen = 'WORLD';
+    GS.save();
   }
 }
 
 function handleGameOverClick() {
-  if (input.wasClicked(270, 340, 260, 54)) {
-    localStorage.removeItem(SAVE_KEY);
+  if (input.wasClicked(300, 530, 200, 50)) {
+    GS._gameOverParty = null;
     GS.screen = 'TITLE';
   }
 }
@@ -462,15 +466,6 @@ function checkBattleEnd(b) {
   else b.phase = 'PLAYER_ACTION';
 }
 
-function healPartyToOne() {
-  // On loss, heal all to 1HP so player can keep playing
-  GS.player.party.forEach(p => {
-    if (p.currentHp <= 0) {
-      p.currentHp = 1;
-      p.status = null;
-    }
-  });
-}
 
 // ─────────────── INIT ───────────────
 loop();

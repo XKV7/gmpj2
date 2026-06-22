@@ -652,17 +652,107 @@ function renderBattleEnd(ctx, input, b) {
 
 // ─────────────── GAME OVER ───────────────
 function renderGameOver(ctx, input) {
-  ctx.fillStyle = '#0a0000';
+  // Background
+  const bg = ctx.createLinearGradient(0, 0, 0, 600);
+  bg.addColorStop(0, '#0a0000');
+  bg.addColorStop(1, '#1a0808');
+  ctx.fillStyle = bg;
   ctx.fillRect(0, 0, 800, 600);
 
+  // Red vignette
+  const vg = ctx.createRadialGradient(400, 300, 100, 400, 300, 500);
+  vg.addColorStop(0, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(120,0,0,0.5)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Title
+  ctx.save();
+  ctx.shadowColor = '#ff2222';
+  ctx.shadowBlur = 24;
   ctx.fillStyle = '#ff4444';
-  ctx.font = '28px "Press Start 2P"';
+  ctx.font = '30px "Press Start 2P"';
   ctx.textAlign = 'center';
-  ctx.fillText('GAME OVER', 400, 220);
+  ctx.fillText('GAME  OVER', 400, 52);
+  ctx.restore();
 
-  ctx.fillStyle = '#886666';
-  ctx.font = '10px "Press Start 2P"';
-  ctx.fillText('모든 포켓이 쓰러졌다...', 400, 280);
+  ctx.fillStyle = '#aa6666';
+  ctx.font = '9px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  ctx.fillText('모든 포켓이 쓰러졌다...', 400, 80);
 
-  drawButton(ctx, 270, 340, 260, 54, '처음으로', input.isHover(270, 340, 260, 54), '#220000', '#ff8888');
+  // Stats row
+  const party   = GS._gameOverParty || [];
+  const area    = GS._gameOverArea  || '???';
+  const defeats = GS._gameOverTrainers ?? 0;
+
+  fillRoundRect(ctx, 20, 100, 760, 40, 6, 'rgba(20,0,0,0.7)', '#551111');
+  ctx.fillStyle = '#cc8888';
+  ctx.font = '8px "Press Start 2P"';
+  ctx.textAlign = 'left';
+  ctx.fillText(`마지막 지역: ${area}`, 34, 126);
+  ctx.textAlign = 'right';
+  ctx.fillText(`격파 트레이너: ${defeats}명`, 766, 126);
+
+  // Party results list
+  fillRoundRect(ctx, 20, 152, 760, 356, 8, 'rgba(15,0,0,0.85)', '#441111');
+
+  ctx.fillStyle = '#cc6666';
+  ctx.font = '9px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  ctx.fillText('── 최종 파티 현황 ──', 400, 177);
+
+  if (party.length === 0) {
+    ctx.fillStyle = '#664444';
+    ctx.font = '8px "Press Start 2P"';
+    ctx.fillText('데이터 없음', 400, 260);
+  } else {
+    const rowH = 54;
+    const cols = 2;
+    const colW = 370;
+    const startX = 30;
+    const startY = 193;
+
+    party.forEach((p, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const rx = startX + col * (colW + 10);
+      const ry = startY + row * (rowH + 8);
+
+      fillRoundRect(ctx, rx, ry, colW, rowH, 6, 'rgba(60,0,0,0.6)', '#662222');
+
+      // Emoji
+      ctx.font = '22px serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(p.emoji, rx + 8, ry + 36);
+
+      // Name & level
+      ctx.fillStyle = '#ddbbbb';
+      ctx.font = '9px "Press Start 2P"';
+      ctx.fillText(`${p.name}`, rx + 40, ry + 18);
+
+      ctx.fillStyle = '#aa8888';
+      ctx.font = '7px "Press Start 2P"';
+      ctx.fillText(`Lv.${p.level}`, rx + 40, ry + 32);
+
+      // Types
+      p.types.forEach((t, ti) => {
+        const badgeX = rx + colW - 70 - ti * 62;
+        drawTypeBadge(ctx, badgeX, ry + 6, t);
+      });
+
+      // HP bar (all zero)
+      drawHpBar(ctx, rx + 40, ry + 40, colW - 50, 8, 0);
+
+      // Status at time of faint
+      ctx.fillStyle = '#aa5555';
+      ctx.font = '7px "Press Start 2P"';
+      ctx.textAlign = 'right';
+      ctx.fillText('전투불능', rx + colW - 6, ry + 18);
+    });
+  }
+
+  // Restart button
+  drawButton(ctx, 300, 530, 200, 50, '처음으로',
+    input.isHover(300, 530, 200, 50), '#330000', '#ff8888');
 }
