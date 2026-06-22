@@ -99,7 +99,7 @@ const SPECIES_DB = {
     id: 1, name: '플라무', types: ['불꽃'],
     baseStats: { hp: 45, atk: 52, def: 43, spAtk: 60, spDef: 50, speed: 65 },
     baseExp: 64, catchRate: 0.45, color: '#E8622A', emoji: '🔥',
-    learnset: { 1: ['할퀴기', '빠른공격'], 10: ['불꽃세례'], 20: ['불꽃펀치'], 30: ['화염방사'], 40: ['매지컬파이어'] }
+    learnset: { 1: ['할퀴기', '불꽃세례'], 10: ['불꽃펀치'], 20: ['화염방사'], 30: ['매지컬파이어'], 40: ['하이퍼빔'] }
   },
   플라이온: {
     id: 2, name: '플라이온', types: ['불꽃', '비행'],
