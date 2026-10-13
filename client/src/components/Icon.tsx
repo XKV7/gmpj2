@@ -1,4 +1,7 @@
-/* 자체 제작 스트로크 아이콘 세트 (24×24) */
+/*
+ * 스트로크 아이콘 세트 (24×24).
+ * 대부분의 경로는 Feather Icons (MIT, Copyright (c) 2013-2017 Cole Bemis)를 바탕으로 함 — THIRD_PARTY_NOTICES.md 참고
+ */
 const P: Record<string, string> = {
   hash: 'M5 9h14M4 15h14M10 3 8 21M16 3l-2 18',
   volume: 'M11 5 6 9H3v6h3l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13',
