@@ -1,11 +1,10 @@
-# Render 블루프린트 — Render 대시보드에서 "New → Blueprint"로 이 저장소를 연결하면 그대로 배포된다.
+# Render 블루프린트 (무료 플랜) — Render 대시보드에서 "New → Blueprint"로 이 저장소를 연결하면 그대로 배포된다.
+# 무료 플랜은 디스크가 없어서, 서버가 잠들었다 깨어나거나 재배포되면 계정과 대화 기록이 초기화된다 (짧은 대화용).
 services:
   - type: web
     name: moyeo
     runtime: node
-    # 대화 기록·업로드를 보관하려면 디스크가 필요하고, 디스크는 유료 플랜(starter 이상)에서만 쓸 수 있다.
-    # 무료로 써 보려면 plan을 free로 바꾸고 아래 disk 블록을 지우면 된다 (단, 재시작/절전 때마다 데이터가 초기화됨).
-    plan: starter
+    plan: free
     region: singapore
     buildCommand: npm ci && npm run build
     startCommand: npm start
@@ -14,21 +13,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
-      - key: MOYEO_DATA_DIR
-        value: /var/data
-      # 1이면 처음 시작할 때(빈 DB) 체험용 계정 5개와 대화 기록을 만든다
+      # 1이면 서버가 (빈 DB로) 시작할 때마다 체험용 계정 5개와 대화 기록을 만든다
       - key: MOYEO_DEMO
         value: "0"
-      # ── 다른 네트워크끼리 통화하려면 TURN 서버 (아래 중 하나만 채우면 됨) ──
-      - key: METERED_DOMAIN
-        sync: false
-      - key: METERED_API_KEY
-        sync: false
-      - key: CLOUDFLARE_TURN_KEY_ID
-        sync: false
-      - key: CLOUDFLARE_TURN_API_TOKEN
-        sync: false
-    disk:
-      name: moyeo-data
-      mountPath: /var/data
-      sizeGB: 1

@@ -46,7 +46,7 @@ async function main() {
   const out = ['', `  ${line}`, `   🫶  모여(Moyeo) 서버가 시작됐어요!  ${config.isProd ? '(운영 모드)' : '(개발 모드)'}`, `  ${line}`];
   if (config.publicUrl) {
     out.push(`   인터넷 주소 →  ${config.publicUrl}`, '   이 주소를 친구에게 보내 주세요. 어느 네트워크에서든 접속할 수 있어요.');
-    out.push(turnConfigured() ? '   📞 TURN 서버 설정됨 — 다른 네트워크끼리도 통화가 잘 연결돼요.' : '   ⚠ TURN 서버 미설정 — 채팅은 되지만, 다른 네트워크끼리의 통화는 연결이 안 될 수 있어요 (README 참고).');
+    if (turnConfigured()) out.push('   📞 TURN 서버 설정됨 — 다른 네트워크끼리도 통화가 잘 연결돼요.');
   } else {
     out.push(`   이 컴퓨터에서         →  http://localhost:${webPort}`);
     const ips = lanAddresses();
