@@ -78,7 +78,7 @@ export function AuthScreen({ onDone }: { onDone: () => void }) {
             <div className="input-with-icon right">
               <input name="password" type={showPw ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={mode === 'register' ? `${LIMITS.PASSWORD_MIN}자 이상` : ''} required />
               <button type="button" className="icon-btn tiny" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? '비밀번호 숨기기' : '비밀번호 보기'}>
-                <Icon name={showPw ? 'lock' : 'search'} size={14} />
+                <Icon name={showPw ? 'eyeOff' : 'eye'} size={15} />
               </button>
             </div>
           </label>
