@@ -41,7 +41,7 @@ export interface ClientToServerEvents {
   activity: (p: { idle: boolean }) => void;
   sync: (p: unknown, ack: Ack<SyncResult>) => void;
   'voice:join': (p: unknown, ack: Ack<{ participants: VoiceParticipant[] }>) => void;
-  'voice:leave': (p?: unknown, ack?: Ack) => void;
+  'voice:leave': (p: unknown, ack: Ack) => void;
   'voice:state': (p: unknown) => void;
   'voice:signal': (p: unknown) => void;
   'call:start': (p: unknown, ack: Ack) => void;

@@ -3,7 +3,7 @@ import { loginSchema, passwordChangeSchema, registerSchema } from '@moyeo/shared
 import { db } from '../db/index.ts';
 import { badRequest } from '../lib/errors.ts';
 import { limits } from '../lib/rateLimit.ts';
-import { authenticate, createSession, createUser, deleteOtherSessions, deleteSession, hashPassword, verifyPassword } from '../services/auth.ts';
+import { authenticate, createSession, createUser, deleteOtherSessions, deleteSession, getSessionUserId, hashPassword, verifyPassword } from '../services/auth.ts';
 import { getUserRow, toMe } from '../services/users.ts';
 import { clearSessionCookie, requireAuth, sessionToken, setSessionCookie } from './context.ts';
 import { getIo } from '../realtime/hub.ts';
@@ -33,8 +33,11 @@ export async function authRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  app.get('/api/auth/me', { preHandler: requireAuth }, async (req) => {
-    return { me: toMe(getUserRow(req.userId)!) };
+  // 로그인 여부 확인용: 로그인하지 않았으면 401 대신 me: null
+  app.get('/api/auth/me', async (req) => {
+    const userId = getSessionUserId(sessionToken(req));
+    const row = userId ? getUserRow(userId) : undefined;
+    return { me: row ? toMe(row) : null };
   });
 
   app.post('/api/auth/password', { preHandler: requireAuth }, async (req) => {

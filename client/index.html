@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="theme-color" content="#FFF9F4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1B1A1F" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="모여 — 친구들과 함께하는 실시간 메신저 & 커뮤니티" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>모여</title>
+    <script>
+      // 첫 화면 깜빡임 방지: 저장된 테마를 미리 적용
+      try {
+        var t = localStorage.getItem('moyeo:theme') || 'system';
+        var dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

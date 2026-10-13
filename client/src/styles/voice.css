@@ -1,0 +1,69 @@
+.voice-view { background: var(--rail); }
+.voice-stage { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 16px; gap: 16px; }
+.voice-grid { flex: 1; min-height: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); grid-auto-rows: minmax(150px, 1fr); align-content: center; }
+.voice-grid.n1 { grid-template-columns: minmax(0, 720px); justify-content: center; }
+.voice-grid.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.voice-tile {
+  position: relative; border-radius: var(--radius-lg); overflow: hidden; background: color-mix(in srgb, var(--tile-color) 22%, var(--surface));
+  display: grid; place-items: center; min-height: 150px; box-shadow: var(--shadow-sm); transition: box-shadow var(--dur) var(--ease); aspect-ratio: 16 / 10; max-height: 100%; width: 100%; justify-self: center;
+}
+.voice-tile.speaking { box-shadow: 0 0 0 3px var(--success), 0 0 24px -4px var(--success); }
+.voice-tile.focus { grid-column: 1 / -1; grid-row: span 2; }
+.voice-tile video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
+.voice-tile video.contain { object-fit: contain; }
+video.mirror { transform: scaleX(-1); }
+.voice-tile-avatar { transition: transform var(--dur) var(--ease-spring); }
+.voice-tile.speaking .voice-tile-avatar { transform: scale(1.06); }
+.voice-tile-label {
+  position: absolute; left: 10px; bottom: 10px; display: flex; align-items: center; gap: 6px; max-width: calc(100% - 20px);
+  padding: 4px 10px; border-radius: 99px; background: rgba(0,0,0,.5); color: #fff; font-size: 13px; font-weight: 600; backdrop-filter: blur(6px);
+}
+.voice-tile-label .danger { color: #ff8a8d; }
+.voice-tile-state { position: absolute; top: 10px; right: 10px; font-size: 11.5px; padding: 3px 8px; border-radius: 99px; background: rgba(0,0,0,.45); color: #fff; }
+.voice-connecting { display: flex; align-items: center; gap: 10px; color: var(--text-2); justify-self: center; }
+
+.voice-controls { display: flex; justify-content: center; gap: 10px; flex-shrink: 0; }
+.vc-btn {
+  width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast), color var(--dur-fast);
+}
+.vc-btn:hover:not(:disabled) { transform: translateY(-2px); }
+.vc-btn:active:not(:disabled) { transform: scale(.92); }
+.vc-btn:disabled { opacity: .45; }
+.vc-btn.off { background: color-mix(in srgb, var(--danger) 16%, var(--surface)); color: var(--danger); }
+.vc-btn.on { background: var(--accent); color: #fff; }
+.vc-btn.leave { background: var(--danger); color: #fff; }
+.voice-controls.compact .vc-btn { width: 40px; height: 40px; }
+.voice-controls.compact .vc-btn .icon { width: 18px; height: 18px; }
+
+.voice-lobby { margin: auto; display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 24px; animation: fade-in var(--dur-slow) var(--ease); }
+.voice-lobby-icon { width: 96px; height: 96px; border-radius: 32px; background: var(--accent-grad); color: #fff; display: grid; place-items: center; box-shadow: 0 12px 30px -10px var(--accent); }
+.voice-lobby h2 { font-size: 24px; font-weight: 800; }
+.voice-lobby p { color: var(--text-2); }
+.voice-lobby-people { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; margin: 6px 0; }
+.lobby-face { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 64px; font-size: 12px; color: var(--text-2); }
+.voice-lobby .row { gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+
+.call-stage { background: var(--rail); border-bottom: 1px solid var(--border); padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 10px; animation: slide-up var(--dur) var(--ease); flex-shrink: 0; }
+.call-stage.expanded { height: min(48vh, 420px); }
+.call-stage .voice-grid { grid-auto-rows: minmax(100px, 1fr); }
+.call-stage .voice-tile { min-height: 100px; aspect-ratio: auto; height: 100%; }
+.call-stage-top { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: var(--text-2); }
+.call-stage-top .icon-btn { margin-left: auto; width: 30px; height: 30px; }
+.call-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--warning); animation: pulse-ring 1.5s infinite; }
+.call-dot.live { background: var(--success); }
+
+.incoming-call {
+  position: fixed; top: 20px; right: 20px; z-index: 1200; width: 320px; padding: 20px; border-radius: var(--radius-xl); background: var(--surface-raised);
+  box-shadow: var(--shadow-lg); border: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; gap: 12px; animation: pop-in var(--dur) var(--ease-spring);
+}
+.incoming-ring { border-radius: 50%; animation: pulse-ring 1.2s infinite; }
+.incoming-text { display: flex; flex-direction: column; align-items: center; }
+.incoming-text strong { font-size: 18px; }
+.incoming-text span { color: var(--text-2); font-size: 14px; }
+.incoming-actions { display: flex; gap: 40px; }
+.round-btn { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; color: #fff; transition: transform var(--dur-fast) var(--ease-spring); }
+.round-btn:hover { transform: scale(1.08); }
+.round-btn.accept { background: var(--success); }
+.round-btn.accept .icon { animation: wiggle 1s infinite; }
+.round-btn.decline { background: var(--danger); }
