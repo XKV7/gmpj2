@@ -220,10 +220,8 @@ export function navigate(r: Route, opts: { replace?: boolean; keepPane?: boolean
   useUI.setState((s) => ({
     route: r,
     editingId: switchingConv ? null : s.editingId,
-    // 서버 채널은 멤버 목록을 기본으로, DM/그룹은 패널을 닫는다
-    rightPanel: switchingConv
-      ? r.view === 'server' && window.innerWidth > 1100 ? 'members' : s.rightPanel === 'members' && r.view === 'server' ? 'members' : null
-      : s.rightPanel,
+        // 오른쪽 서랍은 대화방을 옮기면 닫는다 (멤버 서랍은 같은 서버 안에서는 유지)
+    rightPanel: switchingConv ? (s.rightPanel === 'members' && r.view === 'server' && prev.view === 'server' && prev.serverId === r.serverId ? 'members' : null) : s.rightPanel,
     mobilePane: opts.keepPane ? s.mobilePane : 'main',
   }));
 }

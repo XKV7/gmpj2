@@ -56,6 +56,24 @@ function HeaderButton({ icon, label, onClick, active }: { icon: Parameters<typeo
   );
 }
 
+/** 접속 중인 멤버 얼굴을 겹쳐 보여 주는 버튼 → 누르면 멤버 서랍이 열린다 */
+export function MemberStack({ serverId, active }: { serverId: number; active: boolean }) {
+  const server = useData((s) => s.servers[serverId]);
+  const users = useData((s) => s.users);
+  if (!server) return null;
+  const members = server.members.map((m) => users[m.userId]).filter((u): u is NonNullable<typeof u> => !!u);
+  const online = members.filter((u) => u.presence !== 'offline');
+  const faces = (online.length ? online : members).slice(0, 3);
+  return (
+    <button className={`member-stack ${active ? 'active' : ''}`} onClick={() => ui.setRightPanel('members')} aria-label="멤버 목록" data-tip="멤버 목록">
+      <span className="faces">
+        {faces.map((u) => <Avatar key={u.id} src={u.avatar} name={u.nickname} color={u.bannerColor} size={24} />)}
+      </span>
+      <span className="member-stack-count"><span className="dot-online" />{online.length}<span className="muted">/{members.length}</span></span>
+    </button>
+  );
+}
+
 export function ChatHeader({ convId }: { convId: number }) {
   const conv = useData((s) => s.conversations[convId]);
   const meId = useData((s) => s.me?.id);
@@ -106,7 +124,7 @@ export function ChatHeader({ convId }: { convId: number }) {
         )}
         <HeaderButton icon="pin" label="고정 메시지" onClick={() => ui.setRightPanel('pins')} active={panel === 'pins'} />
         <HeaderButton icon="search" label="메시지 검색" onClick={() => ui.setRightPanel('search')} active={panel === 'search'} />
-        {isServer && <HeaderButton icon="users" label="멤버 목록" onClick={() => ui.setRightPanel('members')} active={panel === 'members'} />}
+        {isServer && conv.serverId && <MemberStack serverId={conv.serverId} active={panel === 'members'} />}
         {conv.kind === 'group' && <HeaderButton icon="users" label="채팅방 정보" onClick={() => ui.setRightPanel('info')} active={panel === 'info'} />}
       </div>
     </header>

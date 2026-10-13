@@ -10,6 +10,7 @@ import { navigate, useUI } from '../store/ui';
 import { useChatContext } from '../hooks/useChatContext';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
+import { MemberStack } from './ChatView';
 
 function VideoView({ stream, mirror, muted = true, contain }: { stream: MediaStream; mirror?: boolean; muted?: boolean; contain?: boolean }) {
   const ref = useRef<HTMLVideoElement>(null);
@@ -88,6 +89,7 @@ export function VoiceChannelView({ channelId }: { channelId: number }) {
   const myRoom = useVoice((s) => s.room);
   const status = useVoice((s) => s.status);
   const joined = myRoom === room;
+  const panel = useUI((s) => s.rightPanel);
   const full = participants.length >= 8 && !joined;
   return (
     <section className="chat voice-view">
@@ -97,6 +99,7 @@ export function VoiceChannelView({ channelId }: { channelId: number }) {
           <Icon name="volume" size={22} className="muted" />
           <span className="chat-title-text"><strong>{conv?.name}</strong><small>음성 채널 · {participants.length}/8명</small></span>
         </div>
+        <div className="chat-actions">{conv?.serverId && <MemberStack serverId={conv.serverId} active={panel === 'members'} />}</div>
       </header>
       <div className="voice-stage">
         {joined ? (

@@ -10,9 +10,9 @@
 | ![DM](docs/screenshots/desktop-light-dm.png) | ![서버 채널](docs/screenshots/desktop-dark-server.png) |
 | ![음성 채널](docs/screenshots/desktop-light-voice.png) | ![영상 통화](docs/screenshots/desktop-light-call.png) |
 
-| 모바일 | 모바일 (다크) | 서버 설정 · 역할 |
+| 모바일 | 모바일 (다크) | 설정 |
 | --- | --- | --- |
-| <img src="docs/screenshots/mobile-light-group-chat.png" width="240"> | <img src="docs/screenshots/mobile-dark-group.png" width="240"> | ![멤버와 역할](docs/screenshots/server-settings-members.png) |
+| <img src="docs/screenshots/mobile-light-group-chat.png" width="240"> | <img src="docs/screenshots/mobile-dark-group.png" width="240"> | ![설정](docs/screenshots/desktop-light-settings.png) |
 
 ---
 
@@ -127,7 +127,8 @@ npm start          # 하나의 포트(3001)에서 API + 화면을 함께 제공
 - 방해 금지 상태이거나 알림을 끈 방은 소리·알림 없음. 서버 채널은 나를 멘션했을 때만 알림
 
 ### 화면 · 사용성
-- 데스크톱: 서버 레일 | 채널·채팅 목록 | 대화창 | 멤버·스레드·검색·고정 패널
+- 데스크톱: 위쪽 **스페이스 탭 바**(대화 · 서버들 · 내 정보) 아래에 목록 카드와 대화 카드가 떠 있는 구조. 멤버·스레드·검색·고정은 필요할 때 여는 **서랍**
+- 메시지는 **말풍선** (내 메시지는 오른쪽, 안 읽은 사람 수와 시간은 말풍선 옆)
 - 모바일(768px 이하): 목록 ↔ 대화창 ↔ 패널 슬라이드 전환, 길게 눌러 메시지 메뉴, 바텀 시트 모달, 터치 친화적 크기
 - 설정: 내 프로필, 테마(라이트/다크/시스템), 알림, 음성·영상 장치, 계정(비밀번호 변경, 로그아웃)
 - 단축키: **Ctrl/⌘ + K** 빠른 이동(한글 초성 검색 지원), **Esc** 답장 취소, **↑** 내 마지막 메시지 수정, **Enter** 보내기 / **Shift+Enter** 줄바꿈

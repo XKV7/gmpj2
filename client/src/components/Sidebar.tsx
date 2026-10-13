@@ -16,9 +16,19 @@ import { useMenu, type MenuItem } from './Menu';
 import { ListSkeleton } from './Skeleton';
 import { VoiceConnectedPanel } from './VoiceStage';
 
-// ───── 왼쪽 세로 바 ─────
+// ───── 위쪽 가로 바: 스페이스(홈 + 서버) 탭 ─────
 
-export function ServerRail() {
+function lastChannelOf(srv: Server): number | null {
+  try {
+    const saved = Number(localStorage.getItem(`moyeo:last-channel:${srv.id}`));
+    if (srv.channels.some((c) => c.id === saved && c.kind === 'text')) return saved;
+  } catch {
+    /* 무시 */
+  }
+  return srv.channels.find((c) => c.kind === 'text')?.id ?? null;
+}
+
+export function TopBar() {
   const servers = useData((s) => s.servers);
   const order = useData((s) => s.serverOrder);
   const conversations = useData((s) => s.conversations);
@@ -30,26 +40,20 @@ export function ServerRail() {
     n += Object.values(relationships).filter((r) => r.type === 'incoming').length;
     return n;
   }, [conversations, relationships]);
-  const lastChannel = (srv: Server) => {
-    try {
-      const saved = Number(localStorage.getItem(`moyeo:last-channel:${srv.id}`));
-      if (srv.channels.some((c) => c.id === saved && c.kind === 'text')) return saved;
-    } catch {
-      /* 무시 */
-    }
-    return srv.channels.find((c) => c.kind === 'text')?.id ?? null;
-  };
   return (
-    <nav className="rail" aria-label="서버 목록">
-      <button className={`rail-item home ${route.view !== 'server' ? 'active' : ''}`} onClick={() => navigate({ view: 'friends' }, { keepPane: true })} data-tip="홈 · 친구와 대화" aria-label="홈">
-        <span className="rail-pill" />
-        <span className="rail-icon logo">
-          <svg viewBox="0 0 64 64" width="30" height="30"><circle cx="24" cy="30" r="9" fill="#fff" /><circle cx="40" cy="30" r="9" fill="#fff" opacity=".85" /><path d="M18 46c4 4 24 4 28 0" stroke="#fff" strokeWidth="4" strokeLinecap="round" fill="none" /></svg>
+    <header className="topbar">
+      <div className="brand" aria-hidden>
+        <span className="brand-logo">
+          <svg viewBox="0 0 64 64" width="22" height="22"><circle cx="24" cy="30" r="9" fill="#fff" /><circle cx="40" cy="30" r="9" fill="#fff" opacity=".85" /><path d="M18 46c4 4 24 4 28 0" stroke="#fff" strokeWidth="4" strokeLinecap="round" fill="none" /></svg>
         </span>
-        {homeBadge > 0 && <span className="badge rail-badge">{homeBadge > 99 ? '99+' : homeBadge}</span>}
-      </button>
-      <div className="rail-sep" />
-      <div className="rail-scroll">
+        <span className="brand-name">모여</span>
+      </div>
+      <nav className="space-tabs" aria-label="서버 목록">
+        <button className={`space-tab ${route.view !== 'server' ? 'active' : ''}`} onClick={() => navigate({ view: 'friends' }, { keepPane: true })} aria-label="홈">
+          <span className="space-icon home"><Icon name="message" size={16} /></span>
+          <span className="space-name">대화</span>
+          {homeBadge > 0 && <span className="badge">{homeBadge > 99 ? '99+' : homeBadge}</span>}
+        </button>
         {order.map((id) => {
           const srv = servers[id];
           if (!srv) return null;
@@ -63,24 +67,24 @@ export function ServerRail() {
           }
           const active = route.view === 'server' && route.serverId === id;
           return (
-            <button key={id} className={`rail-item ${active ? 'active' : ''} ${unread ? 'unread' : ''}`} onClick={() => navigate({ view: 'server', serverId: id, channelId: lastChannel(srv) }, { keepPane: true })} data-tip={srv.name} aria-label={srv.name}>
-              <span className="rail-pill" />
-              <span className="rail-icon">
-                {srv.icon ? <img src={srv.icon} alt="" /> : <span className="rail-initial">{[...srv.name].slice(0, 2).join('')}</span>}
-              </span>
-              {mentions > 0 && <span className="badge rail-badge">{mentions > 99 ? '99+' : mentions}</span>}
+            <button key={id} className={`space-tab ${active ? 'active' : ''} ${unread ? 'unread' : ''}`} onClick={() => navigate({ view: 'server', serverId: id, channelId: lastChannelOf(srv) }, { keepPane: true })} aria-label={srv.name} title={srv.name}>
+              <span className="space-icon">{srv.icon ? <img src={srv.icon} alt="" /> : [...srv.name][0]}</span>
+              <span className="space-name">{srv.name}</span>
+              {mentions > 0 ? <span className="badge">{mentions > 99 ? '99+' : mentions}</span> : unread && <span className="unread-dot" />}
             </button>
           );
         })}
-        <button className="rail-item add" onClick={() => ui.openModal({ type: 'createServer' })} data-tip="서버 만들기 / 참가" aria-label="서버 추가">
-          <span className="rail-icon"><Icon name="plus" size={24} /></span>
+        <button className="space-tab add" onClick={() => ui.openModal({ type: 'createServer' })} aria-label="서버 추가" title="서버 만들기 / 참가">
+          <Icon name="plus" size={16} />
+          <span className="space-name">서버</span>
         </button>
-      </div>
-    </nav>
+      </nav>
+      <UserPanel />
+    </header>
   );
 }
 
-// ───── 하단 내 정보 ─────
+// ───── 내 정보 (위쪽 바 오른쪽) ─────
 
 export function UserPanel() {
   const me = useData((s) => s.me);
@@ -259,7 +263,6 @@ export function HomeSidebar() {
         )}
       </div>
       <VoiceConnectedPanel />
-      <UserPanel />
     </aside>
   );
 }
@@ -308,7 +311,6 @@ export function ServerSidebar({ serverId }: { serverId: number }) {
       <aside className="sidebar">
         <div className="server-header"><span className="sk sk-line" style={{ width: 120 }} /></div>
         <ListSkeleton count={8} />
-        <UserPanel />
       </aside>
     );
   }
@@ -492,7 +494,6 @@ export function ServerSidebar({ serverId }: { serverId: number }) {
         })}
       </div>
       <VoiceConnectedPanel />
-      <UserPanel />
       {menu.render()}
     </aside>
   );

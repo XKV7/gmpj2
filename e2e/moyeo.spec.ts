@@ -216,6 +216,7 @@ test('서버 생성 → 초대 링크로 참가 → 채널 메시지', async () 
   await expect(C.page.locator('.main-pane .chat-header')).toContainText('일반');
 
   // 멤버 목록에 실시간 반영
+  await A.page.getByLabel('멤버 목록').click();
   await expect(A.page.locator('.right-panel .member-row')).toHaveCount(3);
 
   await send(B.page, '채널에 첫 메시지! @앨리스 안녕');

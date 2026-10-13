@@ -12,7 +12,7 @@ import { FriendsView } from './components/FriendsView';
 import { Icon } from './components/Icon';
 import { RightPanelHost } from './components/Panels';
 import { Lightbox, QuickSwitcher } from './components/QuickSwitcher';
-import { HomeSidebar, ServerRail, ServerSidebar } from './components/Sidebar';
+import { HomeSidebar, ServerSidebar, TopBar } from './components/Sidebar';
 import { MessageSkeleton } from './components/Skeleton';
 import { Toasts } from './components/Toasts';
 import { IncomingCall, VoiceChannelView } from './components/VoiceStage';
@@ -76,7 +76,7 @@ function Shell() {
       navigate({ view: 'friends' }, { replace: true });
       ui.openModal({ type: 'joinInvite', code: initial.code });
     } else {
-      useUI.setState({ route: initial, mobilePane: initial.view === 'friends' ? 'nav' : 'main', rightPanel: initial.view === 'server' && window.innerWidth > 1100 ? 'members' : null });
+      useUI.setState({ route: initial, mobilePane: initial.view === 'friends' ? 'nav' : 'main', rightPanel: null });
     }
     bootstrap()
       .then(async () => {
@@ -112,18 +112,23 @@ function Shell() {
 
   return (
     <div className={`app pane-${mobilePane} ${showPanel ? 'has-panel' : ''}`}>
-      <div className="nav-pane">
-        <ServerRail />
-        {serverId ? <ServerSidebar serverId={serverId} /> : <HomeSidebar />}
-      </div>
-      <main className="main-pane">
-        <MainContent />
-      </main>
-      {showPanel && (
-        <div className="panel-pane">
-          <RightPanelHost convId={convKind === 'voice' ? null : convId} serverId={serverId} />
+      <TopBar />
+      <div className="app-body">
+        <div className="nav-pane">
+          {serverId ? <ServerSidebar serverId={serverId} /> : <HomeSidebar />}
         </div>
-      )}
+        <main className="main-pane">
+          <MainContent />
+        </main>
+        {showPanel && (
+          <>
+            <div className="panel-scrim" onClick={ui.closeRightPanel} />
+            <div className="panel-pane">
+              <RightPanelHost convId={convKind === 'voice' ? null : convId} serverId={serverId} />
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

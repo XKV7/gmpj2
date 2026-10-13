@@ -197,17 +197,17 @@ export const MessageItem = memo(function MessageItem({ m, grouped, ctx, editing 
   }
   if (m.deleted) {
     return (
-      <div className={`msg deleted ${grouped ? 'grouped' : ''}`} data-mid={m.id}>
+      <div className={`msg deleted ${m.authorId === ctx.meId ? 'mine' : ''} ${grouped ? 'grouped' : ''}`} data-mid={m.id}>
         <div className="msg-row">
-          <div className="msg-gutter">{!grouped && <Avatar src={author?.avatar} name={author?.nickname ?? '?'} color={author?.bannerColor} size={40} />}</div>
+          {m.authorId !== ctx.meId && <div className="msg-gutter">{!grouped && <Avatar src={author?.avatar} name={author?.nickname ?? '?'} color={author?.bannerColor} size={36} />}</div>}
           <div className="msg-main">
-            {!grouped && (
-              <div className="msg-head">
-                <span className="msg-author">{author?.nickname ?? '알 수 없음'}</span>
-                <time title={formatFull(m.createdAt)}>{formatTime(m.createdAt)}</time>
-              </div>
+            {!grouped && m.authorId !== ctx.meId && (
+              <div className="msg-head"><span className="msg-author">{author?.nickname ?? '알 수 없음'}</span></div>
             )}
-            <div className="msg-deleted"><Icon name="slash" size={14} /> 삭제된 메시지예요.</div>
+            <div className="msg-line">
+              <div className="msg-bubble msg-deleted"><Icon name="slash" size={14} /> 삭제된 메시지예요.</div>
+              <div className="msg-meta"><time title={formatFull(m.createdAt)}>{formatTime(m.createdAt)}</time></div>
+            </div>
           </div>
         </div>
       </div>
@@ -242,7 +242,7 @@ export const MessageItem = memo(function MessageItem({ m, grouped, ctx, editing 
 
   return (
     <div
-      className={`msg ${grouped ? 'grouped' : ''} ${mentioned ? 'mentioned' : ''} ${editing ? 'editing' : ''} ${menu.menu || picker ? 'active' : ''}`}
+      className={`msg ${mine ? 'mine' : ''} ${m.replyTo ? 'has-reply' : ''} ${grouped ? 'grouped' : ''} ${mentioned ? 'mentioned' : ''} ${editing ? 'editing' : ''} ${menu.menu || picker ? 'active' : ''}`}
       data-mid={m.id}
       onContextMenu={(e) => {
         if ((e.target as HTMLElement).closest('a, img, video, textarea')) return;
@@ -265,32 +265,39 @@ export const MessageItem = memo(function MessageItem({ m, grouped, ctx, editing 
         </button>
       )}
       <div className="msg-row">
-        <div className="msg-gutter">
-          {grouped ? (
-            <time className="msg-hover-time" title={formatFull(m.createdAt)}>{formatTime(m.createdAt).replace(/^오[전후] /, '')}</time>
-          ) : (
-            <button className="avatar-btn" onClick={() => ui.openModal({ type: 'profile', userId: m.authorId })} aria-label={`${author?.nickname ?? ''} 프로필`}>
-              <Avatar src={author?.avatar} name={author?.nickname ?? '?'} color={author?.bannerColor} size={40} />
-            </button>
-          )}
-        </div>
+        {!mine && (
+          <div className="msg-gutter">
+            {!grouped && (
+              <button className="avatar-btn" onClick={() => ui.openModal({ type: 'profile', userId: m.authorId })} aria-label={`${author?.nickname ?? ''} 프로필`}>
+                <Avatar src={author?.avatar} name={author?.nickname ?? '?'} color={author?.bannerColor} size={36} />
+              </button>
+            )}
+          </div>
+        )}
         <div className="msg-main">
-          {!grouped && (
+          {!grouped && !mine && (
             <div className="msg-head">
               <button className="msg-author" style={color ? { color } : undefined} onClick={() => ui.openModal({ type: 'profile', userId: m.authorId })}>
                 {author?.nickname ?? '알 수 없음'}
               </button>
-              <time title={formatFull(m.createdAt)}>{formatTime(m.createdAt)}</time>
               {m.pinned && <span className="msg-pinned" title="고정된 메시지"><Icon name="pin" size={12} /></span>}
             </div>
           )}
           {editing ? (
             <EditBox m={m} ctx={ctx} />
           ) : (
-            <div className="msg-body">
-              {m.content && <Markdown content={m.content} />}
-              {m.editedAt && <span className="msg-edited" title={formatFull(m.editedAt)}>(수정됨)</span>}
-              {readCount > 0 && <span className="msg-readcount" title="아직 읽지 않은 사람 수">{readCount}</span>}
+            <div className="msg-line">
+              {m.content && (
+                <div className="msg-bubble">
+                  <Markdown content={m.content} />
+                </div>
+              )}
+              <div className="msg-meta">
+                {readCount > 0 && <span className="msg-readcount" title="아직 읽지 않은 사람 수">{readCount}</span>}
+                {mine && m.pinned && <span className="msg-pinned" title="고정된 메시지"><Icon name="pin" size={11} /></span>}
+                {m.editedAt && <span className="msg-edited" title={formatFull(m.editedAt)}>수정됨</span>}
+                <time className={grouped ? 'msg-hover-time' : ''} title={formatFull(m.createdAt)}>{formatTime(m.createdAt)}</time>
+              </div>
             </div>
           )}
           {m.attachments.length > 0 && <Attachments list={m.attachments} />}
@@ -331,7 +338,7 @@ export function PendingMessage({ item, grouped }: { item: OutboxItem; grouped: b
   if (!me) return null;
   const failed = item.status === 'failed';
   return (
-    <div className={`msg pending ${grouped ? 'grouped' : ''} ${failed ? 'failed' : ''}`}>
+    <div className={`msg mine pending ${grouped ? 'grouped' : ''} ${failed ? 'failed' : ''}`}>
       {replyTo && (
         <div className="msg-reply static">
           <span className="reply-spine" />
@@ -340,15 +347,13 @@ export function PendingMessage({ item, grouped }: { item: OutboxItem; grouped: b
         </div>
       )}
       <div className="msg-row">
-        <div className="msg-gutter">{!grouped && <Avatar src={me.avatar} name={me.nickname} color={me.bannerColor} size={40} />}</div>
         <div className="msg-main">
-          {!grouped && (
-            <div className="msg-head">
-              <span className="msg-author">{me.nickname}</span>
-              <time>{formatTime(item.createdAt)}</time>
+          {item.content && (
+            <div className="msg-line">
+              <div className="msg-bubble"><Markdown content={item.content} /></div>
+              <div className="msg-meta"><time>{formatTime(item.createdAt)}</time></div>
             </div>
           )}
-          {item.content && <div className="msg-body"><Markdown content={item.content} /></div>}
           {item.uploads.length > 0 && (
             <div className="pending-uploads">
               {item.uploads.map((u) => (

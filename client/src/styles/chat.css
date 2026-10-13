@@ -29,41 +29,52 @@ button.chat-title:hover { background: var(--surface-2); }
 .unread-divider { color: var(--danger); }
 .unread-divider::before, .unread-divider::after { background: color-mix(in srgb, var(--danger) 50%, transparent); }
 
-/* ───────── 메시지 ───────── */
-.msg { position: relative; padding: 4px 64px 4px 20px; margin-top: 12px; transition: background var(--dur-fast); }
-.msg.grouped { margin-top: 0; padding-top: 1px; padding-bottom: 1px; }
-.msg:hover, .msg.active { background: color-mix(in srgb, var(--surface-2) 70%, transparent); }
-.msg.mentioned { background: var(--mention-bg); box-shadow: inset 3px 0 0 var(--mention-border); }
-.msg.editing { background: var(--accent-soft); }
-.msg.flash { animation: flash-highlight 2.2s var(--ease); }
-.msg-row { display: flex; gap: 14px; }
-.msg-gutter { width: 40px; flex-shrink: 0; display: flex; justify-content: center; }
-.msg.grouped .msg-gutter { align-items: center; }
-.avatar-btn { border-radius: 50%; height: 40px; transition: transform var(--dur-fast); }
+/* ───────── 메시지 (말풍선) ───────── */
+.msg { position: relative; padding: 2px 20px; margin-top: 14px; }
+.msg.grouped { margin-top: 3px; }
+.msg.editing .msg-main { width: 100%; }
+.msg.flash .msg-bubble { animation: bubble-flash 2.2s var(--ease); }
+@keyframes bubble-flash { 0%, 70% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.msg-row { display: flex; gap: 10px; align-items: flex-start; }
+.msg-gutter { width: 36px; flex-shrink: 0; }
+.avatar-btn { border-radius: 50%; height: 36px; transition: transform var(--dur-fast); }
 .avatar-btn:active { transform: scale(.94); }
-.msg-hover-time { font-size: 10.5px; color: var(--text-3); opacity: 0; white-space: nowrap; }
-.msg:hover .msg-hover-time { opacity: 1; }
-.msg-main { flex: 1; min-width: 0; }
-.msg-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 1px; }
-.msg-author { font-weight: 700; font-size: 15px; color: var(--text); }
+.msg-main { min-width: 0; max-width: min(680px, 78%); display: flex; flex-direction: column; align-items: flex-start; }
+.msg.mine .msg-row { justify-content: flex-end; }
+.msg.mine .msg-main { align-items: flex-end; }
+.msg-head { display: flex; align-items: center; gap: 6px; margin: 0 0 4px 4px; }
+.msg-author { font-weight: 700; font-size: 13px; color: var(--text-2); }
 button.msg-author:hover { text-decoration: underline; }
-.msg-head time { font-size: 11.5px; color: var(--text-3); }
-.msg-pinned { color: var(--accent); }
-.msg-body { display: flex; align-items: flex-end; gap: 6px; word-wrap: break-word; overflow-wrap: anywhere; color: var(--text); }
-.msg-body .md { min-width: 0; }
-.msg-body > .msg-edited, .msg-body > .msg-readcount { flex-shrink: 0; line-height: 1.9; }
-.msg-edited { font-size: 11px; color: var(--text-3); }
+.msg-pinned { color: var(--accent); display: inline-flex; }
+
+.msg-line { display: flex; align-items: flex-end; gap: 6px; max-width: 100%; }
+.msg.mine .msg-line { flex-direction: row-reverse; }
+.msg-bubble {
+  min-width: 0; padding: 8px 13px; background: var(--bubble-other); color: var(--text);
+  border-radius: 6px 18px 18px 18px; word-wrap: break-word; overflow-wrap: anywhere; transition: box-shadow var(--dur-fast);
+}
+.msg.grouped .msg-bubble { border-radius: 18px; border-top-left-radius: 6px; }
+.msg.mine .msg-bubble { background: var(--bubble-me); border-radius: 18px 6px 18px 18px; }
+.msg.mine.grouped .msg-bubble { border-radius: 18px; border-top-right-radius: 6px; }
+.msg-bubble:has(.md.jumbo) { background: none !important; padding: 0 2px; }
+.msg.mentioned .msg-bubble { box-shadow: inset 0 0 0 2px var(--mention-border); background: var(--mention-bg); }
+.msg-meta { display: flex; flex-direction: column; align-items: flex-start; gap: 0; flex-shrink: 0; font-size: 11px; line-height: 1.35; color: var(--text-3); padding-bottom: 2px; }
+.msg.mine .msg-meta { align-items: flex-end; }
 .msg-readcount { font-size: 11.5px; font-weight: 800; color: var(--warning); }
-.msg-deleted { color: var(--text-3); font-style: italic; font-size: 14px; display: flex; align-items: center; gap: 6px; }
-.msg.deleted .msg-head .msg-author { color: var(--text-3); }
+.msg-edited { font-size: 10.5px; color: var(--text-3); }
+.msg-hover-time { opacity: 0; transition: opacity var(--dur-fast); }
+.msg:hover .msg-hover-time, .msg.active .msg-hover-time { opacity: 1; }
+.msg-deleted { color: var(--text-3); font-style: italic; font-size: 14px; display: flex; align-items: center; gap: 6px; background: transparent !important; border: 1.5px dashed var(--border-strong); }
+.msg.mine .attachments, .msg.mine .reactions { justify-content: flex-end; align-items: flex-end; }
 
 .msg-reply {
-  display: flex; align-items: center; gap: 6px; margin: 0 0 4px 30px; font-size: 13px; color: var(--text-2); max-width: calc(100% - 30px);
-  text-align: left; min-width: 0;
+  display: flex; align-items: center; gap: 6px; margin: 0 0 4px 46px; font-size: 12.5px; color: var(--text-2); max-width: min(520px, 70%);
+  text-align: left; min-width: 0; padding: 5px 10px; border-radius: 12px; background: var(--surface-2); border-left: 3px solid var(--accent);
 }
+.msg.mine .msg-reply { margin-left: auto; margin-right: 0; }
 .msg-reply strong { color: var(--text); font-weight: 700; flex-shrink: 0; }
 button.msg-reply:hover span, button.msg-reply:hover strong { color: var(--text); text-decoration: underline; }
-.reply-spine { width: 30px; height: 12px; border-left: 2px solid var(--border-strong); border-top: 2px solid var(--border-strong); border-top-left-radius: 8px; margin-top: 8px; margin-left: -12px; flex-shrink: 0; }
+.reply-spine { display: none; }
 
 .msg-system {
   display: flex; align-items: center; justify-content: center; gap: 8px; margin: 12px auto 4px; padding: 5px 14px; max-width: 80%;
@@ -72,7 +83,7 @@ button.msg-reply:hover span, button.msg-reply:hover strong { color: var(--text);
 .msg-system time { color: var(--text-3); font-size: 11px; flex-shrink: 0; }
 
 .msg-actions {
-  position: absolute; right: 16px; top: -16px; display: none; align-items: center; gap: 1px; padding: 3px;
+  position: absolute; right: 16px; top: -18px; display: none; align-items: center; gap: 1px; padding: 3px;
   background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: 4;
 }
 .msg:hover .msg-actions, .msg.active .msg-actions { display: flex; animation: fade-in var(--dur-fast); }
@@ -81,12 +92,16 @@ button.msg-reply:hover span, button.msg-reply:hover strong { color: var(--text);
 .msg-actions .quick-react { font-size: 17px; }
 .msg-actions .quick-react:hover { transform: scale(1.18); background: none; }
 .msg.grouped .msg-actions { top: -22px; }
+.msg:not(.mine) .msg-actions { right: auto; left: 62px; }
+.msg.mine .msg-actions { right: 20px; }
+/* 답장 인용이 있는 메시지는 인용을 가리지 않도록 도구 막대를 아래쪽에 */
+.msg.has-reply .msg-actions { top: auto; bottom: -18px; }
 
 .msg-thread { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; padding: 6px 10px; border-radius: var(--radius-md); background: var(--surface-2); font-size: 13px; color: var(--accent); }
 .msg-thread:hover { background: var(--accent-soft); }
 
 /* 반응 */
-.reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.reactions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .reaction {
   display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 9px; border-radius: 99px; background: var(--surface-2);
   border: 1.5px solid transparent; font-size: 13px; font-weight: 700; color: var(--text-2); position: relative;
@@ -107,7 +122,7 @@ button.msg-reply:hover span, button.msg-reply:hover strong { color: var(--text);
 @media (hover: hover) { .reaction:hover .reaction-tip { display: block; animation: fade-in var(--dur-fast) .2s both; } }
 
 /* 첨부 */
-.attachments { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; max-width: 420px; }
+.attachments { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; max-width: 420px; }
 .attach-images { display: grid; gap: 4px; border-radius: var(--radius-lg); overflow: hidden; width: fit-content; max-width: 100%; }
 .attach-images.n2 { grid-template-columns: 1fr 1fr; width: 360px; max-width: 100%; }
 .attach-images.n3, .attach-images.n4 { grid-template-columns: 1fr 1fr; width: 360px; max-width: 100%; }
@@ -134,7 +149,7 @@ a.attach-file .icon:last-child { color: var(--text-3); }
 .pending-upload.error .attach-size { color: var(--danger); }
 .progress { height: 5px; border-radius: 4px; background: var(--surface-3); overflow: hidden; margin: 4px 0 2px; }
 .progress span { display: block; height: 100%; background: var(--accent-grad); transition: width var(--dur) var(--ease); }
-.msg.pending .msg-body { opacity: .65; }
+.msg.pending .msg-bubble { opacity: .6; }
 .pending-status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-3); margin-top: 2px; flex-wrap: wrap; }
 .msg.failed .pending-status { color: var(--danger); }
 .pending-status button { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; color: var(--accent); padding: 2px 6px; border-radius: 6px; font-size: 12px; }
