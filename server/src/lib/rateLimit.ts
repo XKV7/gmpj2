@@ -37,7 +37,7 @@ export class RateLimiter {
 
 export const limits = {
   login: new RateLimiter(10, 5 * 60_000, '로그인 시도가 너무 많아요. 5분 뒤에 다시 시도해 주세요.'),
-  register: new RateLimiter(10, 60 * 60_000, '가입 요청이 너무 많아요. 잠시 후 다시 시도해 주세요.'),
+  register: new RateLimiter(30, 60 * 60_000, '가입 요청이 너무 많아요. 잠시 후 다시 시도해 주세요.'),
   message: new RateLimiter(12, 5_000, '메시지를 너무 빨리 보내고 있어요. 잠시만 천천히!'),
   upload: new RateLimiter(30, 60_000, '업로드가 너무 많아요. 1분 뒤에 다시 시도해 주세요.'),
   general: new RateLimiter(120, 10_000),

@@ -14,6 +14,8 @@ export function AuthScreen({ onDone }: { onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const usernameOk = /^[a-zA-Z0-9_.]{3,20}$/.test(username.trim());
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -22,8 +24,12 @@ export function AuthScreen({ onDone }: { onDone: () => void }) {
         setError('아이디는 영문, 숫자, _ . 로 3~20자여야 해요.');
         return;
       }
+      if (password.length < LIMITS.PASSWORD_MIN) {
+        setError(`비밀번호는 ${LIMITS.PASSWORD_MIN}자 이상이어야 해요.`);
+        return;
+      }
       if (password !== password2) {
-        setError('비밀번호가 서로 달라요.');
+        setError('비밀번호 확인이 서로 달라요. 같은 비밀번호를 두 번 입력해 주세요.');
         return;
       }
     }
@@ -66,6 +72,9 @@ export function AuthScreen({ onDone }: { onDone: () => void }) {
           <label className="field">
             <span>아이디</span>
             <input className="input" name="username" autoComplete="username" autoCapitalize="none" spellCheck={false} value={username} onChange={(e) => setUsername(e.target.value)} placeholder="영문, 숫자, _ ." maxLength={LIMITS.USERNAME_MAX} required autoFocus />
+            {mode === 'register' && (
+              <Hint ok={usernameOk} touched={!!username}>영문·숫자·밑줄(_)·점(.)으로 3~20자 (한글·띄어쓰기 불가)</Hint>
+            )}
           </label>
           {mode === 'register' && (
             <label className="field">
@@ -81,11 +90,15 @@ export function AuthScreen({ onDone }: { onDone: () => void }) {
                 <Icon name={showPw ? 'eyeOff' : 'eye'} size={15} />
               </button>
             </div>
+            {mode === 'register' && (
+              <Hint ok={password.length >= LIMITS.PASSWORD_MIN} touched={!!password}>{LIMITS.PASSWORD_MIN}자 이상이면 OK · 영문, 숫자, 특수문자 모두 쓸 수 있어요</Hint>
+            )}
           </label>
           {mode === 'register' && (
             <label className="field">
               <span>비밀번호 확인</span>
               <input className="input" name="password2" type={showPw ? 'text' : 'password'} autoComplete="new-password" value={password2} onChange={(e) => setPassword2(e.target.value)} required />
+              {password2 && <Hint ok={password === password2} touched>{password === password2 ? '비밀번호가 일치해요' : '위에 입력한 비밀번호와 달라요'}</Hint>}
             </label>
           )}
           {error && <p className="form-error" role="alert"><Icon name="alert" size={14} /> {error}</p>}
@@ -100,5 +113,15 @@ export function AuthScreen({ onDone }: { onDone: () => void }) {
         </form>
       </div>
     </div>
+  );
+}
+
+/** 입력 칸 아래 실시간 안내 (조건 충족 시 초록 체크) */
+function Hint({ ok, touched, children }: { ok: boolean; touched: boolean; children: React.ReactNode }) {
+  const state = !touched ? '' : ok ? 'ok' : 'bad';
+  return (
+    <small className={`field-hint ${state}`}>
+      <Icon name={state === 'bad' ? 'alert' : 'check'} size={12} /> {children}
+    </small>
   );
 }
