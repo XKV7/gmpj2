@@ -132,12 +132,13 @@ export function getConversation(convId: number, forUserId: number): Conversation
   return serializeConversation(row, forUserId);
 }
 
-/** 사용자의 DM/그룹 대화 목록 */
+/** 사용자의 DM/그룹 대화 목록 (아직 아무 말도 없는 DM은 목록에 띄우지 않는다) */
 export function listChats(userId: number): Conversation[] {
   const rows = db()
     .prepare(
       `SELECT c.* FROM conversations c JOIN conversation_members cm ON cm.conversation_id = c.id
-       WHERE cm.user_id = ? ORDER BY c.last_activity_at DESC`,
+       WHERE cm.user_id = ? AND NOT (c.kind = 'dm' AND c.last_message_id = 0)
+       ORDER BY c.last_activity_at DESC`,
     )
     .all(userId) as ConvRow[];
   return rows.map((r) => serializeConversation(r, userId));

@@ -6,7 +6,7 @@ import { voiceEngine, mediaSupported } from '../lib/rtc';
 import { acceptCall, declineCall, hangUp } from '../store/calls';
 import { useData } from '../store/data';
 import { useVoice } from '../store/voice';
-import { navigate } from '../store/ui';
+import { navigate, useUI } from '../store/ui';
 import { useChatContext } from '../hooks/useChatContext';
 import { Avatar } from './Avatar';
 import { Icon } from './Icon';
@@ -92,7 +92,7 @@ export function VoiceChannelView({ channelId }: { channelId: number }) {
   return (
     <section className="chat voice-view">
       <header className="chat-header">
-        <button className="icon-btn mobile-only back-btn" onClick={() => navigate({ view: 'friends' })} aria-label="뒤로"><Icon name="chevronLeft" size={22} /></button>
+        <button className="icon-btn mobile-only back-btn" onClick={() => useUI.setState({ mobilePane: 'nav' })} aria-label="목록으로"><Icon name="chevronLeft" size={22} /></button>
         <div className="chat-title static">
           <Icon name="volume" size={22} className="muted" />
           <span className="chat-title-text"><strong>{conv?.name}</strong><small>음성 채널 · {participants.length}/8명</small></span>

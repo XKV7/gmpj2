@@ -343,3 +343,38 @@ test('검색 · 고정 · 빠른 이동 · 설정 화면', async () => {
   await expect(C.page.locator('.main-pane .chat-header')).toContainText('E2E 그룹');
   await shot(C.page, 'mobile-dark-group');
 });
+
+test('파일 전송(진행률·미리보기) · 통화 거절', async () => {
+  // 작은 PNG를 즉석에서 만들어 그룹방에 보낸다
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAACXBIWXMAAAPoAAAD6AG1e1JrAAAAfElEQVRoge2SAQkAURTCzLkk134XQx5fWIBNjB+nSd3ABVBf0V2Iu6Ru4AKor+guxF1SN3AB1Fd0F+IuqRu4AOorugtxl9QNXAD1Fd2FuEvqBi6A+oruQtwldQMXQH1FdyHukrqBC6C+orsQd0ndwAVQX9FdiLukbuDjAT8dzs08x3g5EQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  await A.page.locator('.chat-header').waitFor();
+  const [chooser] = await Promise.all([A.page.waitForEvent('filechooser'), A.page.getByLabel('파일 첨부').click()]);
+  await chooser.setFiles([
+    { name: 'photo.png', mimeType: 'image/png', buffer: png },
+    { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('메모 내용입니다') },
+  ]);
+  await expect(A.page.locator('.file-chip')).toHaveCount(2);
+  await send(A.page, '사진과 메모 보내요');
+  await B.page.locator('.chat-row', { hasText: 'E2E 그룹' }).click();
+  const sent = msg(B.page, '사진과 메모 보내요');
+  await expect(sent.locator('.attach-image img')).toBeVisible();
+  await expect(sent.locator('.attach-file')).toContainText('notes.txt');
+  // 라이트박스
+  await msg(A.page, '사진과 메모 보내요').locator('.attach-image').click();
+  await expect(A.page.locator('.lightbox img')).toBeVisible();
+  await A.page.keyboard.press('Escape');
+  await expect(A.page.locator('.lightbox')).toHaveCount(0);
+
+  // B가 A에게 음성통화 → A가 거절
+  await B.page.getByLabel('홈').click();
+  await B.page.locator(`.chat-row:has(strong:text-is("${A.nickname}"))`).click();
+  await B.page.getByLabel('음성 통화').click();
+  await expect(A.page.locator('.incoming-call')).toBeVisible();
+  await A.page.getByLabel('거절').click();
+  await expect(B.page.locator('.toast', { hasText: '거절' })).toBeVisible();
+  await expect(B.page.locator('.call-stage')).toHaveCount(0);
+  await expect(B.page.locator('.msg-system', { hasText: '통화를 거절했어요' })).toBeVisible();
+});

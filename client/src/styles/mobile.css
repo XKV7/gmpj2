@@ -49,6 +49,8 @@
   .msg-row { gap: 10px; }
   .msg-reply { margin-left: 26px; }
   .msg-actions { display: none !important; }
+  .msg { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .msg .md-codeblock, .msg .edit-box { -webkit-user-select: text; user-select: text; }
   .reaction.add { opacity: 1; }
   .reaction { height: 32px; }
   .attachments { max-width: 100%; }
