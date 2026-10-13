@@ -19,6 +19,7 @@ import { db } from '../db/index.ts';
 import { sendConversationState } from '../realtime/socket.ts';
 import { voiceSnapshot } from '../realtime/voice.ts';
 import { idParam, readSingleFile, requireAuth } from './context.ts';
+import { getIceServers } from '../services/ice.ts';
 import type { BootstrapData, PublicUser } from '@moyeo/shared';
 
 const pageQuery = z.object({
@@ -152,6 +153,9 @@ export async function conversationRoutes(app: FastifyInstance) {
     if (created) emitMessageUpdate(parent, parentMessage);
     return { conversation: serializeConversation(thread, req.userId), parentMessage };
   });
+
+  // WebRTC 연결용 ICE(STUN/TURN) 서버 목록
+  app.get('/api/rtc-config', async () => ({ iceServers: await getIceServers() }));
 
   app.post('/api/uploads', async (req) => {
     limits.upload.consume(`up:${req.userId}`);

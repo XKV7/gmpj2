@@ -1,11 +1,25 @@
 import type { VoiceParticipant } from '@moyeo/shared';
+import { api } from './api';
 import { emitAck, socket } from './socket';
 import { sounds } from './sounds';
 import { useVoice } from '../store/voice';
 import { useUI, ui } from '../store/ui';
 import { useData } from '../store/data';
 
-const ICE_SERVERS: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
+/** 서버가 알려 주는 STUN/TURN 목록 (TURN이 있어야 서로 다른 네트워크끼리도 연결된다) */
+let iceServers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }];
+let iceLoadedAt = 0;
+
+async function loadIceServers() {
+  if (Date.now() - iceLoadedAt < 10 * 60 * 1000) return;
+  try {
+    const res = await api.get<{ iceServers: RTCIceServer[] }>('/api/rtc-config');
+    if (res.iceServers?.length) iceServers = res.iceServers;
+    iceLoadedAt = Date.now();
+  } catch {
+    /* 기본 STUN으로 진행 */
+  }
+}
 
 interface Peer {
   socketId: string;
@@ -89,6 +103,7 @@ class VoiceEngine {
       useVoice.setState({ room, status: 'connecting', speaking: {}, remote: {}, peerState: {} });
       this.room = room;
       this.audioContext();
+      await loadIceServers();
       this.mic = await this.getMic();
       const st = useVoice.getState();
       const muted = st.muted || !this.mic;
@@ -153,7 +168,7 @@ class VoiceEngine {
   private ensurePeer(socketId: string, userId: number): Peer {
     const existing = this.peers.get(socketId);
     if (existing) return existing;
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const pc = new RTCPeerConnection({ iceServers });
     const audioTx = pc.addTransceiver('audio', { direction: 'sendrecv' });
     const videoTx = pc.addTransceiver('video', { direction: 'sendrecv' });
     const audioTrack = this.mic?.getAudioTracks()[0] ?? null;
@@ -299,7 +314,8 @@ class VoiceEngine {
     for (const p of this.peers.values()) this.closePeer(p);
     this.peers.clear();
     const st = useVoice.getState();
-    emitAck('voice:join', { room, muted: st.muted, deafened: st.deafened, video })
+    loadIceServers()
+      .then(() => emitAck('voice:join', { room, muted: st.muted, deafened: st.deafened, video }))
       .then((res) => {
         for (const p of res.participants) if (p.socketId !== socket.id) this.ensurePeer(p.socketId, p.userId);
         this.lastCount = res.participants.length;

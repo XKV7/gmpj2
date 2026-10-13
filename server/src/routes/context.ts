@@ -27,6 +27,8 @@ export function setSessionCookie(reply: FastifyReply, token: string) {
     path: '/',
     httpOnly: true,
     sameSite: 'lax',
+    // HTTPS로 접속했을 때(배포 환경 등)는 Secure 쿠키
+    secure: reply.request.protocol === 'https',
     maxAge: Math.floor(config.sessionTtlMs / 1000),
   });
 }

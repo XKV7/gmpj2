@@ -1,0 +1,9 @@
+node_modules
+**/node_modules
+client/dist
+server/data
+e2e/.data
+e2e/screenshots
+test-results
+playwright-report
+.git

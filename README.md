@@ -133,6 +133,49 @@ npm start          # 하나의 포트(3001)에서 API + 화면을 함께 제공
 - 단축키: **Ctrl/⌘ + K** 빠른 이동(한글 초성 검색 지원), **Esc** 답장 취소, **↑** 내 마지막 메시지 수정, **Enter** 보내기 / **Shift+Enter** 줄바꿈
 - 빈 상태 일러스트, 로딩 스켈레톤, 한국어 토스트 오류 안내
 
+## 인터넷에 배포하기 (다른 와이파이에서도 대화·통화)
+
+같은 와이파이가 아니어도 쓰려면 서버를 인터넷에 올리면 됩니다. 저장소에 **Render 원클릭 배포 설정(`render.yaml`)**이 들어 있어요.
+
+### 1. Render에 배포
+
+1. [render.com](https://render.com)에 **GitHub 계정으로 가입**합니다.
+2. 대시보드에서 **New → Blueprint**를 누르고 이 저장소를 고릅니다.
+   (저장소가 안 보이면 "Configure GitHub App"에서 이 저장소 접근을 허용해 주세요.)
+3. 브랜치를 고릅니다. 모여 코드가 있는 브랜치(`main`에 합쳤다면 `main`)를 선택하세요.
+4. 환경 변수 입력 화면이 나오면 TURN 값(아래 2단계)을 넣거나, 일단 비워 두고 **Apply**를 누릅니다.
+5. 몇 분 뒤 `https://moyeo-xxxx.onrender.com` 같은 **실제 주소**가 생깁니다. 이 주소를 친구에게 보내면 어디서든 가입하고 대화할 수 있어요.
+   - 서버 로그 맨 위에도 이 주소가 표시됩니다.
+   - 체험용 계정과 대화 기록이 필요하면 환경 변수 `MOYEO_DEMO`를 `1`로 바꾸세요. DB가 비어 있을 때 한 번만 데모 데이터를 넣습니다 (비밀번호 `moyeo1234`).
+
+> **요금 안내**: 대화 기록과 업로드 파일을 계속 보관하려면 디스크가 필요하고, Render에서 디스크는 유료 플랜(Starter)에서만 쓸 수 있어요.
+> 그래서 `render.yaml`은 `starter` 플랜 + 1GB 디스크로 되어 있습니다. 정확한 금액은 Render 요금표를 확인해 주세요.
+> **무료로 시험만 해 보려면** `render.yaml`에서 `plan: free`로 바꾸고 `disk:` 블록을 지우면 됩니다.
+> 단, 무료 플랜은 15분 정도 접속이 없으면 잠들고, 다시 깨어나거나 재배포할 때 **데이터가 모두 초기화**됩니다.
+
+### 2. 다른 네트워크끼리 통화하려면: TURN 서버 (채팅만 할 거면 생략 가능)
+
+같은 와이파이에서는 기기끼리 바로 연결되지만, 집·통신사·회사처럼 서로 다른 네트워크에서는 연결을 **중계해 주는 TURN 서버**가 있어야 음성·영상 통화가 안정적으로 이어집니다.
+**채팅, 파일, 알림 등 나머지 기능은 TURN 없이도 모두 동작합니다.** 아래 중 하나만 설정하면 됩니다.
+
+| 서비스 | 할 일 | Render 환경 변수 |
+| --- | --- | --- |
+| **Metered** (가입이 가장 간단) | metered.ca 가입 → TURN 앱 만들기 → 앱 주소와 API 키 복사 | `METERED_DOMAIN` (예: `myapp.metered.live`), `METERED_API_KEY` |
+| **Cloudflare** | Cloudflare 대시보드 → Realtime(Calls) → TURN 키 만들기 | `CLOUDFLARE_TURN_KEY_ID`, `CLOUDFLARE_TURN_API_TOKEN` |
+| 직접 운영 (coturn 등) | 서버 주소와 계정 준비 | `TURN_URLS` (쉼표로 구분, 예: `turn:turn.example.com:3478,turns:turn.example.com:5349`), `TURN_USERNAME`, `TURN_CREDENTIAL` |
+
+설정 후 서버를 다시 시작하면 로그에 `📞 TURN 서버 설정됨`이 표시됩니다. 키는 서버에만 보관되고, 브라우저에는 `/api/rtc-config`로 연결 정보만 전달됩니다.
+
+### 다른 호스팅 (Railway, Fly.io, 개인 서버)
+
+`Dockerfile`이 들어 있어요. 컨테이너의 `3001` 포트를 공개하고, 데이터 보관용 볼륨을 `/data`에 연결하세요.
+공개 주소를 `PUBLIC_URL` 환경 변수로 알려 주면 로그에 표시됩니다. HTTPS는 호스팅 서비스가 처리합니다.
+
+```bash
+docker build -t moyeo .
+docker run -p 3001:3001 -v moyeo-data:/data moyeo
+```
+
 ---
 
 ## 명령어
@@ -157,6 +200,9 @@ npm start          # 하나의 포트(3001)에서 API + 화면을 함께 제공
 | `HTTPS_PORT` | `5443` | LAN 통화용 HTTPS 게이트웨이 포트 |
 | `MOYEO_HTTPS` | `1` | `0`이면 HTTPS 게이트웨이를 끔 |
 | `MOYEO_DATA_DIR` | `server/data` | DB·업로드·인증서 저장 폴더 |
+| `PUBLIC_URL` | (Render는 자동) | 인터넷 배포 시 공개 주소. 설정되면 자체 HTTPS 게이트웨이는 기본으로 꺼짐 |
+| `MOYEO_DEMO` | `0` | `1`이면 빈 DB로 시작할 때 데모 데이터 생성 |
+| `METERED_DOMAIN`, `METERED_API_KEY` / `CLOUDFLARE_TURN_KEY_ID`, `CLOUDFLARE_TURN_API_TOKEN` / `TURN_URLS`, `TURN_USERNAME`, `TURN_CREDENTIAL` | — | 다른 네트워크끼리 통화용 TURN 서버 (하나만) |
 
 ---
 

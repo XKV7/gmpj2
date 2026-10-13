@@ -13,9 +13,8 @@ import {
 
 const PASSWORD = 'moyeo1234';
 
-async function main() {
-  for (const f of [config.dbFile, `${config.dbFile}-wal`, `${config.dbFile}-shm`]) fs.rmSync(f, { force: true });
-  initDb(config.dbFile);
+/** 현재 열린 DB에 데모 데이터를 넣는다 (빈 DB에서만 호출할 것) */
+export async function seedDemo(): Promise<{ inviteCodes: string[] }> {
 
   const people = [
     { username: 'minji', nickname: '민지', status: '오늘도 커피 세 잔째 ☕', color: '#F28C6B' },
@@ -144,13 +143,23 @@ async function main() {
   say(junho!, g2, '물론이죠! 다 알려드려요 😄');
 
   Date.now = realNow;
-  console.log('\n✔ 데모 데이터를 만들었어요!\n');
-  console.log('  아래 계정으로 로그인해 보세요 (비밀번호는 모두 \x1b[1m' + PASSWORD + '\x1b[0m):');
-  for (const p of people) console.log(`   • ${p.username.padEnd(8)} ${p.nickname}`);
-  console.log(`\n  초대 코드: ${inv1.code} (퇴근 후 코딩 클럽), ${inv2.code} (보드게임 동호회)\n`);
+  return { inviteCodes: [inv1.code, inv2.code] };
 }
 
-main().catch((err) => {
-  console.error('데모 데이터 생성 실패:', err);
-  process.exit(1);
-});
+async function main() {
+  for (const f of [config.dbFile, `${config.dbFile}-wal`, `${config.dbFile}-shm`]) fs.rmSync(f, { force: true });
+  initDb(config.dbFile);
+  const { inviteCodes } = await seedDemo();
+  console.log('\n✔ 데모 데이터를 만들었어요!\n');
+  console.log('  아래 계정으로 로그인해 보세요 (비밀번호는 모두 \x1b[1m' + PASSWORD + '\x1b[0m):');
+  for (const u of ['minji 민지', 'junho 준호', 'seoyeon 서연', 'dohyun 도현', 'haeun 하은']) console.log(`   • ${u}`);
+  console.log(`\n  초대 코드: ${inviteCodes[0]} (퇴근 후 코딩 클럽), ${inviteCodes[1]} (보드게임 동호회)\n`);
+}
+
+// 직접 실행했을 때만 (npm run seed)
+if (process.argv[1] && /seed\.ts$/.test(process.argv[1])) {
+  main().catch((err) => {
+    console.error('데모 데이터 생성 실패:', err);
+    process.exit(1);
+  });
+}
