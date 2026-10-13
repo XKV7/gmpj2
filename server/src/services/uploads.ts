@@ -9,6 +9,7 @@ import { db } from '../db/index.ts';
 import { badRequest } from '../lib/errors.ts';
 import { toAttachment } from './messages.ts';
 import { now } from './util.ts';
+import { backupFile, removeBackupFile } from '../persist/index.ts';
 
 fs.mkdirSync(config.uploadsDir, { recursive: true });
 
@@ -78,6 +79,7 @@ export async function saveAttachment(uploaderId: number, buf: Buffer, originalNa
   }
   const stored = randomName(type.ext);
   await fs.promises.writeFile(path.join(config.uploadsDir, stored), data);
+  backupFile(stored, data);
   // 표시 이름의 확장자도 실제 형식에 맞춘다 (예: 그림인데 .pdf 로 올린 경우)
   let name = cleanFileName(originalName);
   const ext = path.extname(name).slice(1).toLowerCase();
@@ -103,6 +105,7 @@ export async function saveIcon(buf: Buffer): Promise<string> {
   }
   const stored = randomName('webp');
   await fs.promises.writeFile(path.join(config.uploadsDir, stored), out);
+  backupFile(stored, out);
   return `/uploads/${stored}`;
 }
 
@@ -111,6 +114,7 @@ export function removeIconFile(url: string | null) {
   if (!url?.startsWith('/uploads/')) return;
   const name = path.basename(url);
   fs.promises.unlink(path.join(config.uploadsDir, name)).catch(() => undefined);
+  removeBackupFile(name);
 }
 
 /** 하루 이상 메시지에 붙지 않은 업로드 정리 */
@@ -119,6 +123,7 @@ export function purgeOrphanUploads() {
   const rows = db().prepare('SELECT id, stored_name FROM attachments WHERE message_id IS NULL AND created_at < ?').all(cutoff) as { id: number; stored_name: string }[];
   for (const r of rows) {
     fs.promises.unlink(path.join(config.uploadsDir, r.stored_name)).catch(() => undefined);
+    removeBackupFile(r.stored_name);
     db().prepare('DELETE FROM attachments WHERE id = ?').run(r.id);
   }
 }

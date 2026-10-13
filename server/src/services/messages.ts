@@ -11,6 +11,7 @@ import { isBlockedEither } from './relationships.ts';
 import { serverMemberIds } from './servers.ts';
 import { getPublicUsers, getUserRow } from './users.ts';
 import { inList, now } from './util.ts';
+import { removeBackupFile } from '../persist/index.ts';
 
 export interface MessageRow {
   id: number;
@@ -289,7 +290,10 @@ export function deleteMessage(userId: number, messageId: number): { message: Mes
     db().prepare('DELETE FROM mentions WHERE message_id = ?').run(messageId);
     db().prepare('DELETE FROM attachments WHERE message_id = ?').run(messageId);
   })();
-  for (const f of files) fs.promises.unlink(path.join(config.uploadsDir, f)).catch(() => undefined);
+  for (const f of files) {
+    fs.promises.unlink(path.join(config.uploadsDir, f)).catch(() => undefined);
+    removeBackupFile(f);
+  }
   return { message: hydrateMessages(getMessageRows([messageId]))[0]!, conv: access.conv };
 }
 

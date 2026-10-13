@@ -13,8 +13,11 @@ import { attachSocketHandlers } from './realtime/socket.ts';
 import { purgeExpiredSessions } from './services/auth.ts';
 import { purgeOrphanUploads } from './services/uploads.ts';
 import { turnConfigured } from './services/ice.ts';
+import { backupEnabled, backupName, flushBackup, restoreFromBackup, startBackupLoop } from './persist/index.ts';
 
 async function main() {
+  // 무료 호스팅처럼 디스크가 초기화되는 환경: 원격 백업(Firebase)에서 먼저 되살린다
+  await restoreFromBackup();
   const db = initDb(config.dbFile);
   // 배포 환경에서 체험용 데이터를 원하면 MOYEO_DEMO=1 (DB가 비어 있을 때 한 번만)
   if (process.env.MOYEO_DEMO === '1' && (db.prepare('SELECT COUNT(*) FROM users').pluck().get() as number) === 0) {
@@ -31,6 +34,7 @@ async function main() {
     connectionStateRecovery: undefined,
   });
   setIo(io);
+  startBackupLoop(db);
   attachSocketHandlers(io);
 
   await app.listen({ port: config.port, host: config.host });
@@ -60,11 +64,14 @@ async function main() {
       out.push('', '   (LAN 주소를 찾지 못했어요. 와이파이 연결을 확인해 주세요.)');
     }
   }
+  if (backupEnabled()) out.push(`   💾 데이터 백업: ${backupName()} (서버가 재시작돼도 계정·대화가 유지돼요)`);
+  else if (config.publicUrl) out.push('   ⚠ 데이터 백업 꺼짐 — 무료 호스팅이면 재시작 시 계정·대화가 초기화돼요 (README의 Firebase 설정 참고)');
   out.push(`  ${line}`, '');
   console.log(out.join('\n'));
 
   const shutdown = async () => {
     logger.info('서버를 종료하는 중...');
+    await flushBackup(db).catch(() => undefined);
     io.close();
     await app.close();
     process.exit(0);
