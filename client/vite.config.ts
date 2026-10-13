@@ -10,9 +10,10 @@ export default defineConfig({
     port: Number(process.env.CLIENT_PORT ?? 5173),
     strictPort: true,
     proxy: {
-      '/api': { target: api, changeOrigin: false },
-      '/uploads': { target: api, changeOrigin: false },
-      '/socket.io': { target: api, ws: true, changeOrigin: false },
+      // xfwd: 레이트 리밋이 실제 접속 기기 IP 기준으로 동작하도록 X-Forwarded-For 전달
+      '/api': { target: api, changeOrigin: false, xfwd: true },
+      '/uploads': { target: api, changeOrigin: false, xfwd: true },
+      '/socket.io': { target: api, ws: true, changeOrigin: false, xfwd: true },
     },
   },
   preview: { host: true, port: 4173 },

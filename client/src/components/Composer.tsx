@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { create } from 'zustand';
 import { ALLOWED_UPLOAD_TYPES, LIMITS, Perm, type PublicUser } from '@moyeo/shared';
 import { formatBytes } from '../lib/format';
@@ -44,10 +45,13 @@ export function addComposerFiles(convId: number, files: File[]) {
 }
 
 function FileChip({ file, onRemove }: { file: File; onRemove: () => void }) {
-  const url = useMemo(() => (file.type.startsWith('image/') ? URL.createObjectURL(file) : null), [file]);
-  useEffect(() => () => {
-    if (url) URL.revokeObjectURL(url);
-  }, [url]);
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!file.type.startsWith('image/')) return;
+    const u = URL.createObjectURL(file);
+    setUrl(u);
+    return () => URL.revokeObjectURL(u);
+  }, [file]);
   return (
     <div className="file-chip">
       {url ? <img src={url} alt="" /> : <span className="attach-file-icon"><Icon name="file" size={22} /></span>}
@@ -127,13 +131,14 @@ export function Composer({ convId, placeholder }: { convId: number; placeholder?
     const caret = el.selectionStart;
     const insert = `@${item === 'everyone' ? '모두' : item.nickname} `;
     const next = text.slice(0, suggest.start) + insert + text.slice(caret);
-    setText(next);
-    setSuggest(null);
-    requestAnimationFrame(() => {
-      el.focus();
-      const pos = suggest.start + insert.length;
-      el.setSelectionRange(pos, pos);
+    // 바로 이어서 입력해도 글자가 섞이지 않도록 커서 위치를 동기적으로 맞춘다
+    flushSync(() => {
+      setText(next);
+      setSuggest(null);
     });
+    el.focus();
+    const pos = suggest.start + insert.length;
+    el.setSelectionRange(pos, pos);
   };
 
   const send = () => {
@@ -325,11 +330,9 @@ export function Composer({ convId, placeholder }: { convId: number; placeholder?
             const el = ref.current;
             const pos = el?.selectionStart ?? text.length;
             const next = text.slice(0, pos) + emoji + text.slice(el?.selectionEnd ?? pos);
-            setText(next);
-            requestAnimationFrame(() => {
-              el?.focus();
-              el?.setSelectionRange(pos + emoji.length, pos + emoji.length);
-            });
+            flushSync(() => setText(next));
+            el?.focus();
+            el?.setSelectionRange(pos + emoji.length, pos + emoji.length);
           }}
         />
       )}

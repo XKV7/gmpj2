@@ -78,8 +78,11 @@ export async function saveAttachment(uploaderId: number, buf: Buffer, originalNa
   }
   const stored = randomName(type.ext);
   await fs.promises.writeFile(path.join(config.uploadsDir, stored), data);
+  // 표시 이름의 확장자도 실제 형식에 맞춘다 (예: 그림인데 .pdf 로 올린 경우)
   let name = cleanFileName(originalName);
-  if (!path.extname(name)) name = `${name}.${type.ext}`;
+  const ext = path.extname(name).slice(1).toLowerCase();
+  const same = ext === type.ext || (type.ext === 'jpg' && ext === 'jpeg') || (type.mime === 'text/plain' && TEXT_EXTENSIONS.has(ext));
+  if (!same) name = `${ext ? name.slice(0, -(ext.length + 1)) : name}.${type.ext}`;
   const id = Number(
     db().prepare('INSERT INTO attachments (uploader_id, name, stored_name, mime, size, width, height, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .run(uploaderId, name, stored, type.mime, data.length, width, height, now()).lastInsertRowid,

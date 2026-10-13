@@ -33,6 +33,9 @@
   .channel-row { padding: 11px 10px; font-size: 16px; }
   .nav-item { padding: 13px 12px; }
 
+  .sidebar-search kbd { display: none; }
+  .chat-welcome { padding: 24px 16px 12px; }
+  .chat-welcome h2 { font-size: 21px; }
   .chat-header { padding: 0 6px 0 4px; gap: 4px; }
   .chat-header .chat-actions { gap: 0; }
   .chat-header .icon-btn { width: 40px; height: 40px; }

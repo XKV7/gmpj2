@@ -147,6 +147,10 @@ kbd {
   }
 }
 
+/* 화면 위쪽(헤더) 버튼의 툴팁은 아래로 */
+.chat-header [data-tip]:hover::after, .panel-header [data-tip]:hover::after { bottom: auto; top: calc(100% + 8px); }
+.chat-actions [data-tip]:last-child:hover::after { left: auto; right: 0; transform: none; }
+
 /* ───────── 메뉴 ───────── */
 .menu {
   position: fixed; z-index: 1000; min-width: 200px; max-width: 280px; padding: 6px;

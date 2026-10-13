@@ -7,3 +7,4 @@ playwright-report
 e2e/screenshots/*.tmp
 .DS_Store
 e2e/.data
+e2e/screenshots/*.png

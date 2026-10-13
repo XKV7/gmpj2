@@ -198,10 +198,17 @@ export const MessageItem = memo(function MessageItem({ m, grouped, ctx, editing 
   if (m.deleted) {
     return (
       <div className={`msg deleted ${grouped ? 'grouped' : ''}`} data-mid={m.id}>
-        <div className="msg-gutter">{!grouped && <Avatar src={author?.avatar} name={author?.nickname ?? '?'} color={author?.bannerColor} size={40} />}</div>
-        <div className="msg-main">
-          {!grouped && <div className="msg-head"><span className="msg-author">{author?.nickname ?? '알 수 없음'}</span></div>}
-          <div className="msg-deleted"><Icon name="slash" size={14} /> 삭제된 메시지예요.</div>
+        <div className="msg-row">
+          <div className="msg-gutter">{!grouped && <Avatar src={author?.avatar} name={author?.nickname ?? '?'} color={author?.bannerColor} size={40} />}</div>
+          <div className="msg-main">
+            {!grouped && (
+              <div className="msg-head">
+                <span className="msg-author">{author?.nickname ?? '알 수 없음'}</span>
+                <time title={formatFull(m.createdAt)}>{formatTime(m.createdAt)}</time>
+              </div>
+            )}
+            <div className="msg-deleted"><Icon name="slash" size={14} /> 삭제된 메시지예요.</div>
+          </div>
         </div>
       </div>
     );

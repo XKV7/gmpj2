@@ -323,7 +323,9 @@ export const data = {
 
   removeOutbox(clientId: string) {
     const item = useData.getState().outbox.find((o) => o.clientId === clientId);
-    item?.uploads.forEach((u) => u.previewUrl && URL.revokeObjectURL(u.previewUrl));
+    // 화면에서 미리보기가 사라진 뒤에 해제 (바로 해제하면 아직 그리는 중인 이미지가 깨진다)
+    const urls = item?.uploads.map((u) => u.previewUrl).filter((x): x is string => !!x) ?? [];
+    if (urls.length) setTimeout(() => urls.forEach((u) => URL.revokeObjectURL(u)), 5000);
     useData.setState((s) => ({ outbox: s.outbox.filter((o) => o.clientId !== clientId) }));
   },
 };

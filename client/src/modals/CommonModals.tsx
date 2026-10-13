@@ -82,15 +82,21 @@ export function CropModal({ spec }: { spec: Extract<ModalSpec, { type: 'cropImag
   const url = useRef<string>('');
 
   useEffect(() => {
-    url.current = URL.createObjectURL(spec.file);
+    let cancelled = false;
+    const u = URL.createObjectURL(spec.file);
+    url.current = u;
     const image = new Image();
-    image.onload = () => setImg(image);
+    image.onload = () => !cancelled && setImg(image);
     image.onerror = () => {
+      if (cancelled) return;
       ui.toast('이미지를 열 수 없어요.', 'error');
       ui.closeModal();
     };
-    image.src = url.current;
-    return () => URL.revokeObjectURL(url.current);
+    image.src = u;
+    return () => {
+      cancelled = true;
+      URL.revokeObjectURL(u);
+    };
   }, [spec.file]);
 
   const base = img ? VIEW / Math.min(img.width, img.height) : 1;

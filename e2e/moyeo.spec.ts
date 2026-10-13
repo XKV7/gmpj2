@@ -10,6 +10,12 @@ interface Player { ctx: BrowserContext; page: Page; username: string; nickname: 
 const stamp = Date.now().toString(36).slice(-5);
 const SHOTS = 'e2e/screenshots';
 
+/** 화면 전환/등장 애니메이션이 끝난 뒤 스크린샷 */
+async function shot(p: Page, name: string) {
+  await p.waitForTimeout(450);
+  await p.screenshot({ path: `${SHOTS}/${name}.png` });
+}
+
 async function newPlayer(browser: Browser, key: string, nickname: string, opts: { dark?: boolean; mobile?: boolean } = {}): Promise<Player> {
   const ctx = await browser.newContext({
     viewport: opts.mobile ? { width: 390, height: 844 } : { width: 1360, height: 860 },
@@ -73,7 +79,7 @@ test.afterAll(async () => {
 });
 
 test('친구 추가 → 수락', async () => {
-  await A.page.screenshot({ path: `${SHOTS}/desktop-light-empty-friends.png` });
+  await shot(A.page, 'desktop-light-empty-friends');
   for (const target of [B, C]) {
     await openFriendsTab(A.page, '친구 추가');
     await A.page.getByLabel('친구 아이디').fill(target.username);
@@ -91,7 +97,7 @@ test('친구 추가 → 수락', async () => {
   // 친구가 되면 온라인 상태가 실시간으로 보인다
   await openFriendsTab(A.page, '온라인');
   await expect(A.page.locator('.friend-row', { hasText: B.nickname })).toBeVisible();
-  await A.page.screenshot({ path: `${SHOTS}/desktop-light-friends.png` });
+  await shot(A.page, 'desktop-light-friends');
 });
 
 test('DM 전송 → 실시간 수신, 읽음 숫자 감소, 입력 중 표시', async () => {
@@ -103,7 +109,7 @@ test('DM 전송 → 실시간 수신, 읽음 숫자 감소, 입력 중 표시', 
   await expect(row.locator('.badge')).toHaveText('1');
   // A: 아직 안 읽은 사람 수 1
   await expect(msg(A.page, '안녕 보브!').locator('.msg-readcount')).toHaveText('1');
-  await B.page.screenshot({ path: `${SHOTS}/desktop-dark-unread.png` });
+  await shot(B.page, 'desktop-dark-unread');
   // B가 열어서 읽으면 A 쪽 숫자가 사라진다
   await row.click();
   await expect(msg(B.page, '안녕 보브!')).toBeVisible();
@@ -152,8 +158,8 @@ test('답장 · 반응 · 수정 · 삭제', async () => {
   await A.page.locator('.modal').getByRole('button', { name: '삭제' }).click();
   await expect(B.page.locator('.main-pane .msg-deleted')).toBeVisible();
   await expect(msg(B.page, '고친 메시지입니다')).toHaveCount(0);
-  await A.page.screenshot({ path: `${SHOTS}/desktop-light-dm.png` });
-  await B.page.screenshot({ path: `${SHOTS}/desktop-dark-dm.png` });
+  await shot(A.page, 'desktop-light-dm');
+  await shot(B.page, 'desktop-dark-dm');
 });
 
 test('그룹 채팅방 만들기', async () => {
@@ -168,14 +174,14 @@ test('그룹 채팅방 만들기', async () => {
   await C.page.getByLabel('목록으로').first().click().catch(() => undefined);
   const groupRow = C.page.locator('.chat-row', { hasText: 'E2E 그룹' });
   await expect(groupRow).toBeVisible();
-  await C.page.screenshot({ path: `${SHOTS}/mobile-light-chat-list.png` });
+  await shot(C.page, 'mobile-light-chat-list');
   await groupRow.click();
   await send(C.page, '그룹 안녕! 모바일에서 왔어요 📱');
   await expect(msg(A.page, '그룹 안녕!')).toBeVisible();
   await expect(B.page.locator('.chat-row', { hasText: 'E2E 그룹' })).toContainText('그룹 안녕!');
   // 그룹 메시지의 안 읽은 사람 수: A는 읽음, B는 아직 → 1
   await expect(msg(C.page, '그룹 안녕!').locator('.msg-readcount')).toHaveText('1');
-  await C.page.screenshot({ path: `${SHOTS}/mobile-light-group-chat.png` });
+  await shot(C.page, 'mobile-light-group-chat');
 });
 
 test('서버 생성 → 초대 링크로 참가 → 채널 메시지', async () => {
@@ -216,9 +222,9 @@ test('서버 생성 → 초대 링크로 참가 → 채널 메시지', async () 
   await expect(msg(A.page, '채널에 첫 메시지!')).toBeVisible();
   await expect(msg(A.page, '채널에 첫 메시지!').locator('.mention-me')).toHaveText(`@${A.nickname}`);
   await expect(msg(C.page, '채널에 첫 메시지!')).toBeVisible();
-  await A.page.screenshot({ path: `${SHOTS}/desktop-light-server.png` });
-  await B.page.screenshot({ path: `${SHOTS}/desktop-dark-server.png` });
-  await C.page.screenshot({ path: `${SHOTS}/mobile-light-server-channel.png` });
+  await shot(A.page, 'desktop-light-server');
+  await shot(B.page, 'desktop-dark-server');
+  await shot(C.page, 'mobile-light-server-channel');
 });
 
 test('연결이 끊겼다가 다시 연결되면 놓친 메시지를 동기화', async () => {
@@ -260,7 +266,7 @@ test('연결이 끊겼다가 다시 연결되면 놓친 메시지를 동기화',
   const iOffline = texts.findIndex((t) => t.includes('오프라인에서 쓴 메시지'));
   expect(iMissed).toBeGreaterThanOrEqual(0);
   expect(iOffline).toBeGreaterThan(iMissed);
-  await C.page.screenshot({ path: `${SHOTS}/mobile-light-after-resync.png` });
+  await shot(C.page, 'mobile-light-after-resync');
 });
 
 test('음성 채널: 두 사람이 WebRTC로 연결된다', async () => {
@@ -278,7 +284,7 @@ test('음성 채널: 두 사람이 WebRTC로 연결된다', async () => {
   // 음소거 상태가 상대에게 반영
   await B.page.locator('.voice-controls').getByLabel('마이크 끄기').click();
   await expect(A.page.locator('.voice-tile', { hasText: B.nickname }).locator('.voice-tile-label .danger')).toBeVisible();
-  await A.page.screenshot({ path: `${SHOTS}/desktop-light-voice.png` });
+  await shot(A.page, 'desktop-light-voice');
   await B.page.locator('.voice-controls').getByLabel('나가기').click();
   await A.page.locator('.voice-controls').getByLabel('나가기').click();
   await expect(C.page.locator('.voice-member')).toHaveCount(0);
@@ -289,13 +295,13 @@ test('1:1 영상통화: 걸기 → 받기 → 끊기', async () => {
   await A.page.locator('.chat-row', { hasText: B.nickname }).click();
   await A.page.getByLabel('영상 통화').click();
   await expect(B.page.locator('.incoming-call')).toContainText(A.nickname);
-  await B.page.screenshot({ path: `${SHOTS}/desktop-dark-incoming-call.png` });
+  await shot(B.page, 'desktop-dark-incoming-call');
   await B.page.getByLabel('받기').click();
   for (const p of [A.page, B.page]) {
     await expect(p.locator('.call-stage .voice-tile')).toHaveCount(2);
     await expect(p.locator('.call-stage-top')).toContainText('통화 중');
   }
-  await A.page.screenshot({ path: `${SHOTS}/desktop-light-call.png` });
+  await shot(A.page, 'desktop-light-call');
   await A.page.locator('.call-stage').getByLabel('나가기').click();
   await expect(B.page.locator('.call-stage')).toHaveCount(0);
   await expect(A.page.locator('.msg-system', { hasText: '통화 종료' })).toBeVisible();
@@ -324,16 +330,16 @@ test('검색 · 고정 · 빠른 이동 · 설정 화면', async () => {
   // 설정
   await A.page.getByLabel('설정').click();
   await expect(A.page.locator('.settings-modal')).toContainText('내 프로필');
-  await A.page.screenshot({ path: `${SHOTS}/desktop-light-settings.png` });
+  await shot(A.page, 'desktop-light-settings');
   await A.page.locator('.settings-nav').getByRole('button', { name: '테마' }).click();
   await A.page.locator('.theme-card', { hasText: '다크' }).click();
   await expect(A.page.locator('html')).toHaveAttribute('data-theme', 'dark');
   await A.page.keyboard.press('Escape');
-  await A.page.screenshot({ path: `${SHOTS}/desktop-dark-group.png` });
+  await shot(A.page, 'desktop-dark-group');
   // 모바일 다크
   await C.page.emulateMedia({ colorScheme: 'dark' });
   await C.page.getByLabel('홈').click();
   await C.page.locator('.chat-row', { hasText: 'E2E 그룹' }).click();
   await expect(C.page.locator('.main-pane .chat-header')).toContainText('E2E 그룹');
-  await C.page.screenshot({ path: `${SHOTS}/mobile-dark-group.png` });
+  await shot(C.page, 'mobile-dark-group');
 });
