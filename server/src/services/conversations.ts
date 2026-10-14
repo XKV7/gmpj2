@@ -1,4 +1,4 @@
-import { LIMITS, Perm, type Conversation, type ConversationKind, type ConversationMember } from '@moyeo/shared';
+import { LIMITS, Perm, type Conversation, type ConversationKind, type ConversationMember, type GroupInvite } from '@moyeo/shared';
 import { db } from '../db/index.ts';
 import { badRequest, forbidden, notFound } from '../lib/errors.ts';
 import { getMessageRows, hydrateMessages, insertSystemMessage } from './messages.ts';
@@ -116,6 +116,7 @@ export function serializeConversation(row: ConvRow, forUserId: number | null): C
     parentMessageId: row.parent_message_id,
     createdAt: row.created_at,
     members: isChat ? getMembers(row.id) : [],
+    invitedIds: row.kind === 'group' ? invitedIdsOf(row.id) : [],
     lastMessage,
     lastActivityAt: row.last_activity_at,
     lastReadId: rs.last_read_id,
@@ -192,10 +193,24 @@ function assertInvitable(actorId: number, userIds: number[]) {
     const u = getUserRow(uid);
     if (!u) throw notFound('초대할 사용자를 찾을 수 없어요.');
     if (!areFriends(actorId, uid)) throw forbidden(`${u.nickname}님은 친구가 아니어서 초대할 수 없어요.`);
+    if (isBlockedEither(actorId, uid)) throw forbidden(`${u.nickname}님은 초대할 수 없어요.`);
   }
 }
 
-export function createGroup(ownerId: number, name: string | undefined, userIds: number[]): ConvRow {
+// ───── 그룹 초대: 받은 사람이 수락해야만 들어간다 (동의 없는 강제 참여 방지) ─────
+
+export function invitedIdsOf(convId: number): number[] {
+  return db().prepare('SELECT user_id FROM group_invites WHERE conversation_id = ? ORDER BY created_at').pluck().all(convId) as number[];
+}
+
+function insertInvites(convId: number, inviterId: number, userIds: number[]) {
+  const t = now();
+  const ins = db().prepare('INSERT OR IGNORE INTO group_invites (conversation_id, user_id, inviter_id, created_at) VALUES (?, ?, ?, ?)');
+  for (const uid of userIds) ins.run(convId, uid, inviterId, t);
+}
+
+/** 그룹 만들기: 만든 사람만 먼저 들어가고, 고른 친구들에게는 초대장을 보낸다 */
+export function createGroup(ownerId: number, name: string | undefined, userIds: number[]): { conv: ConvRow; invited: number[] } {
   const ids = [...new Set(userIds.filter((u) => u !== ownerId))];
   if (ids.length === 0) throw badRequest('함께할 친구를 골라 주세요.');
   if (ids.length + 1 > LIMITS.GROUP_MAX_MEMBERS) throw badRequest(`그룹 채팅은 최대 ${LIMITS.GROUP_MAX_MEMBERS}명까지예요.`);
@@ -206,34 +221,76 @@ export function createGroup(ownerId: number, name: string | undefined, userIds: 
       db().prepare(`INSERT INTO conversations (kind, name, owner_id, last_activity_at, created_at) VALUES ('group', ?, ?, ?, ?)`)
         .run(name?.trim() || null, ownerId, t, t).lastInsertRowid,
     );
-    const ins = db().prepare('INSERT INTO conversation_members (conversation_id, user_id, joined_after_id, joined_at) VALUES (?, ?, 0, ?)');
-    ins.run(id, ownerId, t);
-    for (const uid of ids) ins.run(id, uid, t);
+    db().prepare('INSERT INTO conversation_members (conversation_id, user_id, joined_after_id, joined_at) VALUES (?, ?, 0, ?)').run(id, ownerId, t);
     const owner = getUserRow(ownerId)!;
-    insertSystemMessage(id, ownerId, `${owner.nickname}님이 그룹 채팅을 만들었어요.`);
+    const names = ids.map((u) => getUserRow(u)!.nickname).join(', ');
+    insertSystemMessage(id, ownerId, `${owner.nickname}님이 그룹 채팅을 만들고 ${names}님을 초대했어요.`);
+    insertInvites(id, ownerId, ids);
     return id;
   })();
-  return getConvRow(id)!;
+  return { conv: getConvRow(id)!, invited: ids };
 }
 
-export function addGroupMembers(convId: number, actorId: number, userIds: number[]): number[] {
+/** 그룹에 친구 초대 (초대장만 보냄). 새로 초대한 사람 목록을 돌려준다. */
+export function inviteToGroup(convId: number, actorId: number, userIds: number[]): number[] {
   const { conv } = getAccess(actorId, convId);
   if (conv.kind !== 'group') throw badRequest('그룹 채팅에서만 초대할 수 있어요.');
   const current = new Set(convMemberIds(convId));
-  const ids = [...new Set(userIds)].filter((u) => !current.has(u));
-  if (ids.length === 0) throw badRequest('이미 모두 참여하고 있어요.');
-  if (current.size + ids.length > LIMITS.GROUP_MAX_MEMBERS) throw badRequest(`그룹 채팅은 최대 ${LIMITS.GROUP_MAX_MEMBERS}명까지예요.`);
+  const pending = new Set(invitedIdsOf(convId));
+  const ids = [...new Set(userIds)].filter((u) => !current.has(u) && !pending.has(u));
+  if (ids.length === 0) throw badRequest('이미 참여 중이거나 초대를 보낸 친구예요.');
+  if (current.size + pending.size + ids.length > LIMITS.GROUP_MAX_MEMBERS) throw badRequest(`그룹 채팅은 최대 ${LIMITS.GROUP_MAX_MEMBERS}명까지예요.`);
   assertInvitable(actorId, ids);
-  const t = now();
   db().transaction(() => {
-    const lastId = getConvRow(convId)!.last_message_id;
-    const ins = db().prepare('INSERT INTO conversation_members (conversation_id, user_id, joined_after_id, joined_at) VALUES (?, ?, ?, ?)');
-    for (const uid of ids) ins.run(convId, uid, lastId, t);
+    insertInvites(convId, actorId, ids);
     const actor = getUserRow(actorId)!;
     const names = ids.map((u) => getUserRow(u)!.nickname).join(', ');
     insertSystemMessage(convId, actorId, `${actor.nickname}님이 ${names}님을 초대했어요.`);
   })();
   return ids;
+}
+
+export function getGroupInvite(userId: number, convId: number): GroupInvite | null {
+  const row = db()
+    .prepare(
+      `SELECT gi.conversation_id, gi.inviter_id, gi.created_at, c.name, c.icon FROM group_invites gi
+       JOIN conversations c ON c.id = gi.conversation_id WHERE gi.user_id = ? AND gi.conversation_id = ?`,
+    )
+    .get(userId, convId) as { conversation_id: number; inviter_id: number; created_at: number; name: string | null; icon: string | null } | undefined;
+  if (!row) return null;
+  return {
+    conversationId: row.conversation_id,
+    name: row.name,
+    icon: row.icon,
+    inviterId: row.inviter_id,
+    memberIds: convMemberIds(row.conversation_id),
+    createdAt: row.created_at,
+  };
+}
+
+export function listGroupInvites(userId: number): GroupInvite[] {
+  const ids = db().prepare('SELECT conversation_id FROM group_invites WHERE user_id = ? ORDER BY created_at DESC').pluck().all(userId) as number[];
+  return ids.map((id) => getGroupInvite(userId, id)).filter((x): x is GroupInvite => !!x);
+}
+
+/** 초대 수락: 이때 비로소 멤버가 된다 */
+export function acceptGroupInvite(userId: number, convId: number): ConvRow {
+  const invite = getGroupInvite(userId, convId);
+  if (!invite) throw notFound('초대가 만료되었거나 취소되었어요.');
+  if (convMemberIds(convId).length >= LIMITS.GROUP_MAX_MEMBERS) throw badRequest(`그룹 채팅이 가득 찼어요 (최대 ${LIMITS.GROUP_MAX_MEMBERS}명).`);
+  db().transaction(() => {
+    const lastId = getConvRow(convId)!.last_message_id;
+    db().prepare('DELETE FROM group_invites WHERE conversation_id = ? AND user_id = ?').run(convId, userId);
+    db().prepare('INSERT OR IGNORE INTO conversation_members (conversation_id, user_id, joined_after_id, joined_at) VALUES (?, ?, ?, ?)').run(convId, userId, lastId, now());
+    insertSystemMessage(convId, userId, `${getUserRow(userId)!.nickname}님이 들어왔어요.`);
+  })();
+  return getConvRow(convId)!;
+}
+
+/** 초대 거절: 방에 아무것도 남기지 않고 초대장만 지운다 */
+export function declineGroupInvite(userId: number, convId: number) {
+  const info = db().prepare('DELETE FROM group_invites WHERE conversation_id = ? AND user_id = ?').run(convId, userId);
+  if (info.changes === 0) throw notFound('초대가 만료되었거나 취소되었어요.');
 }
 
 export function leaveGroup(convId: number, userId: number) {

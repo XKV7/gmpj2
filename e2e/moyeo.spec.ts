@@ -168,14 +168,22 @@ test('그룹 채팅방 만들기', async () => {
   await modal.locator('.picker-row', { hasText: B.nickname }).locator('input').check();
   await modal.locator('.picker-row', { hasText: C.nickname }).locator('input').check();
   await modal.getByPlaceholder('비워 두면 멤버 이름으로 표시돼요').fill('E2E 그룹');
-  await modal.getByRole('button', { name: /그룹 만들기/ }).click();
+  await modal.getByRole('button', { name: /그룹 만들고/ }).click();
   await expect(A.page.locator('.chat-header')).toContainText('E2E 그룹');
-  // C(모바일): 목록에 그룹이 실시간으로 나타나고, 열어서 메시지 전송
+  // 초대받은 사람은 동의하기 전까지 방에 들어가지 않는다 → 초대 카드만 보인다
+  await expect(B.page.locator('.invite-card', { hasText: 'E2E 그룹' })).toBeVisible();
+  await expect(B.page.locator('.chat-row', { hasText: 'E2E 그룹' })).toHaveCount(0);
+  await B.page.locator('.invite-card', { hasText: 'E2E 그룹' }).getByRole('button', { name: '수락하고 들어가기' }).click();
+  await expect(B.page.locator('.chat-header')).toContainText('E2E 그룹');
+  await B.page.locator(`.chat-row:has(strong:text-is("${A.nickname}"))`).click();
+  // C(모바일): 초대 카드에서 수락
   await C.page.getByLabel('목록으로').first().click().catch(() => undefined);
-  const groupRow = C.page.locator('.chat-row', { hasText: 'E2E 그룹' });
-  await expect(groupRow).toBeVisible();
+  const inviteCard = C.page.locator('.invite-card', { hasText: 'E2E 그룹' });
+  await expect(inviteCard).toBeVisible();
+  await expect(C.page.locator('.chat-row', { hasText: 'E2E 그룹' })).toHaveCount(0);
   await shot(C.page, 'mobile-light-chat-list');
-  await groupRow.click();
+  await inviteCard.getByRole('button', { name: '수락하고 들어가기' }).click();
+  await expect(C.page.locator('.main-pane .chat-header')).toContainText('E2E 그룹');
   await send(C.page, '그룹 안녕! 모바일에서 왔어요 📱');
   await expect(msg(A.page, '그룹 안녕!')).toBeVisible();
   await expect(B.page.locator('.chat-row', { hasText: 'E2E 그룹' })).toContainText('그룹 안녕!');

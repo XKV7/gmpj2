@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { unreadReaderCount } from '@moyeo/shared';
 import { cid, befriend, freshDb, makeUsers } from './helpers.ts';
-import { addGroupMembers, countUnread, createGroup, getMembers, getOrCreateDm, markRead } from '../src/services/conversations.ts';
+import { acceptGroupInvite, countUnread, createGroup, getMembers, getOrCreateDm, inviteToGroup, markRead } from '../src/services/conversations.ts';
 import { sendMessage } from '../src/services/messages.ts';
 
 describe('읽음 수 계산 (공용 함수)', () => {
@@ -47,9 +47,12 @@ describe('읽음 상태 (서비스)', () => {
   });
 
   it('그룹: 나중에 초대된 사람은 이전 메시지의 읽음 수에 포함되지 않는다', () => {
-    const conv = createGroup(u.a!, '모임', [u.b!, u.c!]);
+    const conv = createGroup(u.a!, '모임', [u.b!, u.c!]).conv;
+    acceptGroupInvite(u.b!, conv.id);
+    acceptGroupInvite(u.c!, conv.id);
     const before = sendMessage(u.a!, { conversationId: conv.id, content: '첫 메시지', clientId: cid(), attachmentIds: [] }).message;
-    addGroupMembers(conv.id, u.a!, [u.d!]);
+    inviteToGroup(conv.id, u.a!, [u.d!]);
+    acceptGroupInvite(u.d!, conv.id);
     const after = sendMessage(u.a!, { conversationId: conv.id, content: '두 번째', clientId: cid(), attachmentIds: [] }).message;
     const members = getMembers(conv.id);
     expect(unreadReaderCount(members, before.id, u.a!)).toBe(2);
@@ -57,7 +60,9 @@ describe('읽음 상태 (서비스)', () => {
   });
 
   it('멘션 수를 따로 센다', () => {
-    const conv = createGroup(u.a!, '모임', [u.b!, u.c!]);
+    const conv = createGroup(u.a!, '모임', [u.b!, u.c!]).conv;
+    acceptGroupInvite(u.b!, conv.id);
+    acceptGroupInvite(u.c!, conv.id);
     sendMessage(u.a!, { conversationId: conv.id, content: `<@${u.b}> 이거 봐`, clientId: cid(), attachmentIds: [] });
     sendMessage(u.a!, { conversationId: conv.id, content: '그냥 메시지', clientId: cid(), attachmentIds: [] });
     sendMessage(u.a!, { conversationId: conv.id, content: '<@everyone> 공지', clientId: cid(), attachmentIds: [] });

@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import { formatShort } from '../lib/format';
 import { toPlainText } from '../lib/markdown';
 import { voiceEngine } from '../lib/rtc';
-import { leaveGroup, markRead, setConversationPrefs, setPresencePref } from '../store/actions';
+import { acceptGroupInvite, declineGroupInvite, leaveGroup, markRead, setConversationPrefs, setPresencePref } from '../store/actions';
 import { useData } from '../store/data';
 import { displayName, nameOf, PRESENCE_LABEL, sortChats } from '../store/selectors';
 import { navigate, ui, useUI } from '../store/ui';
@@ -33,13 +33,14 @@ export function TopBar() {
   const order = useData((s) => s.serverOrder);
   const conversations = useData((s) => s.conversations);
   const relationships = useData((s) => s.relationships);
+  const inviteCount = useData((s) => Object.keys(s.groupInvites).length);
   const route = useUI((s) => s.route);
   const homeBadge = useMemo(() => {
     let n = 0;
     for (const c of Object.values(conversations)) if ((c.kind === 'dm' || c.kind === 'group') && !c.muted) n += c.unread;
     n += Object.values(relationships).filter((r) => r.type === 'incoming').length;
-    return n;
-  }, [conversations, relationships]);
+    return n + inviteCount;
+  }, [conversations, relationships, inviteCount]);
   return (
     <header className="topbar">
       <div className="brand" aria-hidden>
@@ -221,6 +222,49 @@ function ChatRow({ c, active }: { c: Conversation; active: boolean }) {
   );
 }
 
+/** 받은 그룹 초대: 수락해야 방에 들어간다 */
+function GroupInviteCards() {
+  const invites = useData((s) => s.groupInvites);
+  const users = useData((s) => s.users);
+  const [busy, setBusy] = useState<number | null>(null);
+  const list = Object.values(invites).sort((a, b) => b.createdAt - a.createdAt);
+  if (!list.length) return null;
+  const run = async (id: number, fn: (id: number) => Promise<void>) => {
+    setBusy(id);
+    try {
+      await fn(id);
+    } catch (err) {
+      ui.error(err);
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <div className="invite-cards">
+      <div className="section-title"><span>그룹 초대 {list.length}</span></div>
+      {list.map((g) => {
+        const inviter = users[g.inviterId];
+        const names = g.memberIds.map((id) => users[id]?.nickname ?? '?');
+        return (
+          <div key={g.conversationId} className="invite-card">
+            <div className="invite-card-top">
+              <Avatar src={g.icon ?? inviter?.avatar} name={g.name ?? inviter?.nickname ?? '?'} color={inviter?.bannerColor} size={40} square={!!g.icon} />
+              <div className="grow">
+                <strong className="ellipsis">{g.name ?? `${names.slice(0, 3).join(', ')}${names.length > 3 ? ` 외 ${names.length - 3}명` : ''}`}</strong>
+                <small className="ellipsis">{inviter?.nickname ?? '친구'}님이 초대했어요 · {g.memberIds.length}명 참여 중</small>
+              </div>
+            </div>
+            <div className="invite-card-actions">
+              <button className="btn btn-ghost btn-sm" disabled={busy === g.conversationId} onClick={() => void run(g.conversationId, declineGroupInvite)}>거절</button>
+              <button className="btn btn-primary btn-sm" disabled={busy === g.conversationId} onClick={() => void run(g.conversationId, acceptGroupInvite)}>수락하고 들어가기</button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function HomeSidebar() {
   const conversations = useData((s) => s.conversations);
   const bootstrapped = useData((s) => s.bootstrapped);
@@ -248,6 +292,7 @@ export function HomeSidebar() {
           <span className="grow">친구</span>
           {pending > 0 && <span className="badge">{pending}</span>}
         </button>
+        <GroupInviteCards />
         <div className="section-title">
           <span>채팅</span>
           <button className="icon-btn tiny" onClick={() => ui.openModal({ type: 'newChat' })} aria-label="새 채팅" data-tip="새 채팅"><Icon name="plus" size={16} /></button>

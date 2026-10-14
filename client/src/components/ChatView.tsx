@@ -33,7 +33,7 @@ function Welcome({ convId }: { convId: number }) {
       <div className="chat-welcome">
         <ConversationIcon conv={conv} size={84} />
         <h2>{displayName(conv)}</h2>
-        <p>그룹 채팅의 시작이에요. {conv.members.length}명이 함께하고 있어요.</p>
+        <p>그룹 채팅의 시작이에요. {conv.members.length}명이 함께하고 있어요.{conv.invitedIds.length > 0 && <> 초대한 친구 {conv.invitedIds.length}명이 수락하면 함께해요.</>}</p>
         <button className="btn btn-soft" onClick={() => ui.openModal({ type: 'inviteToGroup', conversationId: conv.id })}><Icon name="userPlus" size={16} /> 친구 초대하기</button>
       </div>
     );

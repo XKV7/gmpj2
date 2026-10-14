@@ -73,6 +73,18 @@ export function startRealtime() {
     data.upsertConversation(conversation);
   });
 
+  socket.on('groupInvite:upsert', ({ invite, users }) => {
+    const isNew = !useData.getState().groupInvites[invite.conversationId];
+    data.upsertUsers(users);
+    data.upsertGroupInvite(invite);
+    if (isNew) {
+      const who = useData.getState().users[invite.inviterId]?.nickname ?? '친구';
+      ui.toast(`${who}님이 ${invite.name ? `'${invite.name}' ` : ''}그룹 채팅에 초대했어요. 목록에서 수락하거나 거절할 수 있어요.`);
+      if (useUI.getState().settings.sound && useData.getState().me?.presencePref !== 'dnd') sounds.message();
+    }
+  });
+  socket.on('groupInvite:remove', ({ conversationId }) => data.removeGroupInvite(conversationId));
+
   socket.on('conversation:remove', ({ conversationId }) => {
     data.removeConversation(conversationId);
     const r = useUI.getState().route;
@@ -292,7 +304,7 @@ function setupTitleBadge() {
       else if (c.kind === 'text') total += c.mentions;
     }
     const pending = Object.values(s.relationships).filter((r) => r.type === 'incoming').length;
-    total += pending;
+    total += pending + Object.keys(s.groupInvites).length;
     const title = total > 0 ? `(${total > 99 ? '99+' : total}) 모여` : '모여';
     if (document.title !== title) document.title = title;
   };

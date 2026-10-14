@@ -398,6 +398,17 @@ export function GroupInfoPanel({ convId }: { convId: number }) {
             </button>
           ))}
         </div>
+        {conv.invitedIds.length > 0 && (
+          <div className="member-group">
+            <div className="member-group-title">초대 수락 대기 — {conv.invitedIds.length}</div>
+            {conv.invitedIds.map((id) => users[id]).filter((u): u is PublicUser => !!u).map((u) => (
+              <div key={u.id} className="member-row offline">
+                <Avatar src={u.avatar} name={u.nickname} color={u.bannerColor} size={34} />
+                <span className="member-text"><span className="member-name"><span className="ellipsis">{u.nickname}</span></span><small>아직 수락하지 않았어요</small></span>
+              </div>
+            ))}
+          </div>
+        )}
         <button
           className="btn btn-danger-soft full"
           onClick={() => ui.confirm({ title: '채팅방 나가기', message: '그룹 채팅방에서 나갈까요? 대화 기록이 내 목록에서 사라져요.', confirmLabel: '나가기', danger: true, onConfirm: () => leaveGroup(convId) })}

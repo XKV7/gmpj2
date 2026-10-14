@@ -173,4 +173,18 @@ CREATE TABLE invites (
 );
 `,
   },
+  {
+    version: 2,
+    name: 'group invites (consent before joining)',
+    sql: `
+CREATE TABLE group_invites (
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  inviter_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (conversation_id, user_id)
+);
+CREATE INDEX group_invites_user ON group_invites(user_id);
+`,
+  },
 ];

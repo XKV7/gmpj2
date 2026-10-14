@@ -1,5 +1,5 @@
 import type {
-  Conversation, Message, PublicUser, Relationship, Server, VoiceParticipant, Presence, Me, SyncResult,
+  Conversation, GroupInvite, Message, PublicUser, Relationship, Server, VoiceParticipant, Presence, Me, SyncResult,
 } from './types.ts';
 
 export type Ack<T = undefined> = (res: AckResult<T>) => void;
@@ -14,6 +14,8 @@ export interface ServerToClientEvents {
   'conversation:upsert': (p: { conversation: Conversation; users: PublicUser[] }) => void;
   'conversation:remove': (p: { conversationId: number }) => void;
   'conversation:state': (p: { conversationId: number; lastReadId: number; unread: number; mentions: number; pinned: boolean; muted: boolean }) => void;
+  'groupInvite:upsert': (p: { invite: GroupInvite; users: PublicUser[] }) => void;
+  'groupInvite:remove': (p: { conversationId: number }) => void;
   'message:new': (p: { message: Message; users: PublicUser[] }) => void;
   'message:update': (p: { message: Message }) => void;
   read: (p: { conversationId: number; userId: number; lastReadId: number }) => void;

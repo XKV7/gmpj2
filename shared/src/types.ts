@@ -52,6 +52,8 @@ export interface Conversation {
   createdAt: number;
   /** DM/그룹에서만 채워진다 */
   members: ConversationMember[];
+  /** 그룹: 초대를 받았지만 아직 수락하지 않은 사람 */
+  invitedIds: number[];
   lastMessage: Message | null;
   /** 정렬 기준이 되는 마지막 활동 시각 */
   lastActivityAt: number;
@@ -150,6 +152,16 @@ export interface Server {
   members: ServerMember[];
 }
 
+/** 그룹 채팅 초대장 — 받은 사람이 수락해야 방에 들어간다 */
+export interface GroupInvite {
+  conversationId: number;
+  name: string | null;
+  icon: string | null;
+  inviterId: number;
+  memberIds: number[];
+  createdAt: number;
+}
+
 export interface Invite {
   code: string;
   serverId: number;
@@ -184,6 +196,7 @@ export interface BootstrapData {
   conversations: Conversation[];
   servers: Server[];
   voice: Record<string, VoiceParticipant[]>;
+  groupInvites: GroupInvite[];
   /** 서버 기준 현재 시각 — 재접속 동기화의 기준점 */
   serverTime: number;
 }

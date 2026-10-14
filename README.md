@@ -90,7 +90,7 @@ npm start          # 하나의 포트(3001)에서 API + 화면을 함께 제공
 - 아이디로 친구 요청 → 수락/거절/취소, 친구 삭제, 차단/해제, 친구 목록(온라인 우선 정렬), 이름 검색
 
 ### 채팅 (DM · 그룹)
-- 1:1 DM, 그룹 채팅(최대 50명) — 친구 초대, 나가기, 방 이름·방 사진 변경
+- 1:1 DM, 그룹 채팅(최대 50명) — 친구 초대(**받은 사람이 수락해야 참여**, 거절 가능), 나가기, 방 이름·방 사진 변경
 - 채팅 목록: 마지막 메시지 미리보기, 시간, 안 읽은 수 배지, **상단 고정**, **알림 끄기**, 실시간 정렬, 입력 중 미리보기
 - **읽음 표시**: 메시지 옆에 아직 안 읽은 사람 수(카카오톡처럼), 읽으면 실시간으로 줄어듦
 - **입력 중 표시**: "OO님이 입력 중…", 여러 명이면 "OO님 외 N명이 입력 중"
@@ -280,6 +280,7 @@ docker run -p 3001:3001 -v moyeo-data:/data moyeo
 | `sessions` | token_hash(PK), user_id, expires_at | 로그인 세션 (30일) |
 | `relationships` | (user_id, other_id), type = friend / incoming / outgoing / blocked | 친구·요청·차단 (양방향 행) |
 | `conversations` | id, kind = dm / group / text / voice / thread, name, icon, topic, owner_id, server_id, category_id, position, parent_id, parent_message_id, dm_key(유일), last_message_id, last_activity_at | 모든 대화 공간을 하나로: DM, 그룹, 서버 채널, 스레드 |
+| `group_invites` | (conversation_id, user_id), inviter_id | 그룹 초대장. 수락하면 `conversation_members`로 옮겨지고, 거절하면 지워짐 |
 | `conversation_members` | (conversation_id, user_id), joined_after_id | DM/그룹 참여자. `joined_after_id`로 들어오기 전 메시지는 읽음 수에서 제외 |
 | `read_states` | (user_id, conversation_id), last_read_id, pinned, muted | 사용자별 읽음 위치 + 상단 고정 + 알림 끄기 |
 | `messages` | id(AUTOINCREMENT), conversation_id, author_id, type = text / system, content, client_id, reply_to_id, mentions_everyone, thread_id, pinned_at, edited_at, deleted_at, created_at, updated_at | `(author_id, client_id)` 유일 인덱스로 중복 전송 방지, `updated_at`으로 수정 동기화 |
@@ -326,6 +327,7 @@ docker run -p 3001:3001 -v moyeo-data:/data moyeo
 | `server:upsert` / `server:remove` | 서버 구조(채널·역할·멤버) 변화 / 추방·삭제·나감 |
 | `voice:state`, `voice:signal`, `voice:kicked` | 음성방 참가자, 시그널, 강제 퇴장 |
 | `call:incoming`, `call:cancelled` | 걸려 온 전화 / 거절·부재중·다른 기기에서 받음 |
+| `groupInvite:upsert` / `groupInvite:remove` | 받은 그룹 초대 / 처리되거나 취소된 초대 |
 
 ### 주요 REST API
 
@@ -335,7 +337,7 @@ docker run -p 3001:3001 -v moyeo-data:/data moyeo
 | `GET /api/bootstrap` | 첫 화면에 필요한 모든 것 (나, 친구, 대화 목록, 서버, 음성방 현황, 서버 시각) |
 | `PATCH /api/users/me`, `POST·DELETE /api/users/me/avatar`, `GET /api/users/:id` | 프로필 |
 | `POST /api/friends/requests`, `POST /api/friends/:id/accept`, `DELETE /api/friends/:id`, `POST·DELETE /api/users/:id/block` | 친구·차단 |
-| `POST /api/conversations/dm · group`, `GET·PATCH /api/conversations/:id`, `POST …/icon`, `POST …/members`, `DELETE …/members/me`, `PUT …/prefs` | 대화방 |
+| `POST /api/conversations/dm · group`, `GET·PATCH /api/conversations/:id`, `POST …/icon`, `POST …/members`(초대장 보내기), `POST /api/group-invites/:id/accept · decline`, `DELETE …/members/me`, `PUT …/prefs` | 대화방 |
 | `GET /api/conversations/:id/messages?before·after·around`, `…/search?q&authorId`, `…/pins` | 메시지 페이지·검색·고정 목록 |
 | `POST /api/messages/:id/thread` | 스레드 열기 |
 | `POST /api/uploads` | 파일 업로드 (multipart) |
@@ -352,7 +354,7 @@ docker run -p 3001:3001 -v moyeo-data:/data moyeo
   - 역할을 만들고/고치고/부여하려면 `역할 관리` 권한 + 그 역할이 **내 최상위 역할보다 낮아야** 합니다.
   - 내가 갖지 않은 권한 비트는 어떤 역할에도 줄 수 없습니다.
 - **닉네임 색** = 색이 지정된 역할 중 가장 높은 역할의 색.
-- DM/그룹: 참여자만 접근. 그룹 이름·사진 변경과 초대는 참여자 누구나(초대는 친구만). 메시지 수정·삭제는 작성자만.
+- DM/그룹: 참여자만 접근. 그룹 이름·사진 변경과 초대는 참여자 누구나(초대는 친구만). **초대받은 사람은 수락하기 전까지 멤버가 아니라서 메시지를 보거나 보낼 수 없고, 거절하면 아무 기록도 남지 않음.** 서버도 초대 링크를 받은 사람이 직접 '참가하기'를 눌러야 들어감. 메시지 수정·삭제는 작성자만.
 - 서버 채널: 멤버만 접근. 다른 사람 메시지 삭제와 고정은 `메시지 관리`.
 - 모든 판정은 서버에서 합니다 (`shared/src/permissions.ts`를 서버·클라이언트가 같이 쓰고, 클라이언트는 버튼 표시 여부에만 사용).
 

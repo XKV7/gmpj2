@@ -6,7 +6,8 @@ import { z } from 'zod';
 import { badRequest } from '../lib/errors.ts';
 import { limits } from '../lib/rateLimit.ts';
 import {
-  addGroupMembers, convMemberIds, createGroup, getAccess, getConvRow, getOrCreateDm, leaveGroup, listChats,
+  acceptGroupInvite, createGroup, declineGroupInvite, getAccess, getConvRow, getGroupInvite, getOrCreateDm,
+  invitedIdsOf, inviteToGroup, leaveGroup, listChats, listGroupInvites,
   serializeConversation, setPrefs, updateConversation,
 } from '../services/conversations.ts';
 import { getOrCreateThread, getPage, getPins, searchMessages } from '../services/messages.ts';
@@ -36,12 +37,18 @@ export async function conversationRoutes(app: FastifyInstance) {
     const userId = req.userId;
     const relationships = getRelationships(userId);
     const conversations = listChats(userId);
+    const groupInvites = listGroupInvites(userId);
     const servers = serverIdsOf(userId).map((id) => getServerPayload(id, userId));
     const userIds = new Set<number>();
     relationships.forEach((r) => userIds.add(r.userId));
     conversations.forEach((c) => {
       c.members.forEach((m) => userIds.add(m.userId));
       if (c.lastMessage) userIds.add(c.lastMessage.authorId);
+      c.invitedIds.forEach((u) => userIds.add(u));
+    });
+    groupInvites.forEach((g) => {
+      userIds.add(g.inviterId);
+      g.memberIds.forEach((u) => userIds.add(u));
     });
     const users = new Map<number, PublicUser>();
     for (const u of getPublicUsers(userIds)) users.set(u.id, u);
@@ -53,6 +60,7 @@ export async function conversationRoutes(app: FastifyInstance) {
       conversations,
       servers: servers.map((s) => s.server),
       voice: voiceSnapshot(userId),
+      groupInvites,
       serverTime: Date.now(),
     };
   });
@@ -77,11 +85,12 @@ export async function conversationRoutes(app: FastifyInstance) {
 
   app.post('/api/conversations/group', async (req) => {
     const input = createGroupSchema.parse(req.body);
-    const conv = createGroup(req.userId, input.name, input.userIds);
-    for (const uid of convMemberIds(conv.id)) joinUserToRoom(uid, `conv:${conv.id}`);
+    const { conv, invited } = createGroup(req.userId, input.name, input.userIds);
+    joinUserToRoom(req.userId, `conv:${conv.id}`);
     pushConversation(conv.id);
+    sendInvites(conv.id, invited);
     const conversation = serializeConversation(conv, req.userId);
-    return { conversation, users: getPublicUsers(conversation.members.map((m) => m.userId)) };
+    return { conversation, users: getPublicUsers([...conversation.members.map((m) => m.userId), ...conversation.invitedIds]) };
   });
 
   app.patch('/api/conversations/:id', async (req) => {
@@ -111,19 +120,42 @@ export async function conversationRoutes(app: FastifyInstance) {
     const id = idParam(req);
     const { userIds } = inviteMembersSchema.parse(req.body);
     const before = lastIdOf(id);
-    const added = addGroupMembers(id, req.userId, userIds);
-    for (const uid of added) joinUserToRoom(uid, `conv:${id}`);
+    const invited = inviteToGroup(id, req.userId, userIds);
     afterConversationChange(id, before);
-    return { ok: true };
+    sendInvites(id, invited);
+    return { invited };
   });
 
   app.delete('/api/conversations/:id/members/me', async (req) => {
     const id = idParam(req);
     const before = lastIdOf(id);
+    const pendingInvitees = invitedIdsOf(id);
     leaveGroup(id, req.userId);
+    // 마지막 사람이 나가 방이 사라졌다면 받은 초대장도 함께 사라진다
+    if (!getConvRow(id)) for (const uid of pendingInvitees) emitToUser(uid, 'groupInvite:remove', { conversationId: id });
     leaveUserFromRoom(req.userId, `conv:${id}`);
     emitToUser(req.userId, 'conversation:remove', { conversationId: id });
     afterConversationChange(id, before);
+    return { ok: true };
+  });
+
+  // ── 그룹 초대 수락/거절 ──
+  app.post('/api/group-invites/:id/accept', async (req) => {
+    const id = idParam(req);
+    const before = lastIdOf(id);
+    const conv = acceptGroupInvite(req.userId, id);
+    joinUserToRoom(req.userId, `conv:${id}`);
+    emitToUser(req.userId, 'groupInvite:remove', { conversationId: id });
+    afterConversationChange(id, before);
+    const conversation = serializeConversation(conv, req.userId);
+    return { conversation, users: getPublicUsers([...conversation.members.map((m) => m.userId), ...conversation.invitedIds]) };
+  });
+
+  app.post('/api/group-invites/:id/decline', async (req) => {
+    const id = idParam(req);
+    declineGroupInvite(req.userId, id);
+    emitToUser(req.userId, 'groupInvite:remove', { conversationId: id });
+    pushConversation(id);
     return { ok: true };
   });
 
@@ -178,3 +210,11 @@ export function afterConversationChange(convId: number, beforeLastId: number) {
 }
 
 const lastIdOf = (convId: number) => getConvRow(convId)?.last_message_id ?? 0;
+
+/** 초대받은 사람에게 초대장을 실시간으로 보낸다 */
+function sendInvites(convId: number, userIds: number[]) {
+  for (const uid of userIds) {
+    const invite = getGroupInvite(uid, convId);
+    if (invite) emitToUser(uid, 'groupInvite:upsert', { invite, users: getPublicUsers([invite.inviterId, ...invite.memberIds]) });
+  }
+}

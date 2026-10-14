@@ -5,7 +5,7 @@ import { config } from './config.ts';
 import { db, initDb } from './db/index.ts';
 import { createUser } from './services/auth.ts';
 import { acceptFriend, sendFriendRequest } from './services/relationships.ts';
-import { createGroup, getOrCreateDm, markRead } from './services/conversations.ts';
+import { acceptGroupInvite, createGroup, getOrCreateDm, markRead } from './services/conversations.ts';
 import { getOrCreateThread, sendMessage, setPinned, toggleReaction } from './services/messages.ts';
 import {
   createCategory, createInvite, createRole, createServer, insertChannel, joinByInvite, loadServerCtx, setMemberRoles,
@@ -85,7 +85,8 @@ export async function seedDemo(): Promise<{ inviteCodes: string[] }> {
   markRead(dohyun!, dm3, 1e9);
 
   // 그룹 채팅
-  const group = createGroup(minji!, '주말 등산 모임 ⛰️', [junho!, seoyeon!, dohyun!]).id;
+  const group = createGroup(minji!, '주말 등산 모임 ⛰️', [junho!, seoyeon!, dohyun!]).conv.id;
+  for (const u of [junho!, seoyeon!, dohyun!]) { tick(2); acceptGroupInvite(u, group); }
   say(minji!, group, '다들 토요일 10시 불광역 괜찮아?');
   say(junho!, group, '난 완전 좋아');
   say(seoyeon!, group, '저도 갈게요! 간식 챙겨갈게요 🍫');

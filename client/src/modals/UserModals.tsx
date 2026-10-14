@@ -71,7 +71,10 @@ export function NewChatModal() {
     setBusy(true);
     try {
       if (selected.length === 1) await openDm(selected[0]!);
-      else await createGroup(selected, name.trim() || undefined);
+      else {
+        await createGroup(selected, name.trim() || undefined);
+        ui.toast(`친구 ${selected.length}명에게 초대를 보냈어요. 수락하면 대화에 들어와요.`, 'success');
+      }
       ui.closeModal();
     } catch (err) {
       ui.error(err);
@@ -81,13 +84,13 @@ export function NewChatModal() {
   return (
     <Modal
       title="새 채팅"
-      subtitle={`친구를 1명 고르면 1:1 대화, 여러 명이면 그룹 채팅이 돼요 (최대 ${LIMITS.GROUP_MAX_MEMBERS}명).`}
+      subtitle={`친구를 1명 고르면 1:1 대화, 여러 명이면 그룹 채팅이 돼요 (최대 ${LIMITS.GROUP_MAX_MEMBERS}명). 그룹은 초대받은 친구가 수락해야 들어와요.`}
       size="sm"
       footer={
         <>
           <button className="btn btn-ghost" onClick={ui.closeModal}>취소</button>
           <button className="btn btn-primary" disabled={!selected.length || busy} onClick={() => void start()}>
-            {selected.length > 1 ? `그룹 만들기 (${selected.length + 1}명)` : '대화 시작'}
+            {selected.length > 1 ? `그룹 만들고 ${selected.length}명 초대` : '대화 시작'}
           </button>
         </>
       }
@@ -108,11 +111,11 @@ export function InviteToGroupModal({ conversationId }: { conversationId: number 
   const [selected, setSelected] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
   if (!conv) return null;
-  const room = LIMITS.GROUP_MAX_MEMBERS - conv.members.length;
+  const room = LIMITS.GROUP_MAX_MEMBERS - conv.members.length - conv.invitedIds.length;
   return (
     <Modal
       title="친구 초대"
-      subtitle={`지금 ${conv.members.length}명 · ${room}명 더 초대할 수 있어요.`}
+      subtitle={`지금 ${conv.members.length}명 · ${room}명 더 초대할 수 있어요. 친구가 수락하면 들어와요.`}
       size="sm"
       footer={
         <>
@@ -124,7 +127,7 @@ export function InviteToGroupModal({ conversationId }: { conversationId: number 
               setBusy(true);
               try {
                 await api.post(`/api/conversations/${conversationId}/members`, { userIds: selected });
-                ui.toast('친구를 초대했어요.', 'success');
+                ui.toast('초대를 보냈어요. 친구가 수락하면 들어와요.', 'success');
                 ui.closeModal();
               } catch (err) {
                 ui.error(err);
@@ -132,12 +135,12 @@ export function InviteToGroupModal({ conversationId }: { conversationId: number 
               }
             }}
           >
-            {selected.length ? `${selected.length}명 초대` : '초대'}
+            {selected.length ? `${selected.length}명에게 초대 보내기` : '초대 보내기'}
           </button>
         </>
       }
     >
-      <FriendPicker exclude={conv.members.map((m) => m.userId)} selected={selected} onToggle={(id) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))} />
+      <FriendPicker exclude={[...conv.members.map((m) => m.userId), ...conv.invitedIds]} selected={selected} onToggle={(id) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))} />
     </Modal>
   );
 }

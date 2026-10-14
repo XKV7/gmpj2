@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type {
-  Attachment, BootstrapData, Conversation, Me, Message, PublicUser, Relationship, Server, VoiceParticipant,
+  Attachment, BootstrapData, Conversation, GroupInvite, Me, Message, PublicUser, Relationship, Server, VoiceParticipant,
 } from '@moyeo/shared';
 
 export interface ChatLog {
@@ -45,6 +45,8 @@ export interface DataState {
   servers: Record<number, Server>;
   serverOrder: number[];
   voice: Record<string, VoiceParticipant[]>;
+  /** 받은 그룹 초대 (수락 전) */
+  groupInvites: Record<number, GroupInvite>;
   chats: Record<number, ChatLog>;
   typing: Record<number, Record<number, number>>;
   outbox: OutboxItem[];
@@ -61,6 +63,7 @@ const initial: DataState = {
   servers: {},
   serverOrder: [],
   voice: {},
+  groupInvites: {},
   chats: {},
   typing: {},
   outbox: [],
@@ -110,6 +113,7 @@ export const data = {
         servers,
         serverOrder: b.servers.map((x) => x.id),
         voice: b.voice,
+        groupInvites: Object.fromEntries(b.groupInvites.map((g) => [g.conversationId, g])),
         lastServerTime: Math.max(s.lastServerTime, b.serverTime),
         bootstrapped: true,
       };
@@ -211,6 +215,19 @@ export const data = {
       const conversations = { ...s.conversations };
       if (srv) for (const ch of srv.channels) delete conversations[ch.id];
       return { servers, serverOrder: s.serverOrder.filter((x) => x !== id), conversations };
+    });
+  },
+
+  upsertGroupInvite(g: GroupInvite) {
+    useData.setState((s) => ({ groupInvites: { ...s.groupInvites, [g.conversationId]: g } }));
+  },
+
+  removeGroupInvite(conversationId: number) {
+    useData.setState((s) => {
+      if (!(conversationId in s.groupInvites)) return {};
+      const groupInvites = { ...s.groupInvites };
+      delete groupInvites[conversationId];
+      return { groupInvites };
     });
   },
 

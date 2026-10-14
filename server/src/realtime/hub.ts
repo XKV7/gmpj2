@@ -1,6 +1,6 @@
 import type { Server as IOServer } from 'socket.io';
 import type { ClientToServerEvents, Message, ServerToClientEvents } from '@moyeo/shared';
-import { convMemberIds, getConvRow, roomOf, serializeConversation, type ConvRow } from '../services/conversations.ts';
+import { convMemberIds, getConvRow, invitedIdsOf, roomOf, serializeConversation, type ConvRow } from '../services/conversations.ts';
 import { getMessageRows, hydrateMessages, usersForMessages } from '../services/messages.ts';
 import { getServerPayload } from '../services/servers.ts';
 import { audienceOf, getPublicUsers, getUserRow, toMe, toPublicUser } from '../services/users.ts';
@@ -59,7 +59,7 @@ export function pushConversation(convId: number, extraUserIds: number[] = []) {
   const row = getConvRow(convId);
   if (!row) return;
   const members = convMemberIds(convId);
-  const users = getPublicUsers(members);
+  const users = getPublicUsers([...members, ...invitedIdsOf(convId)]);
   for (const uid of new Set([...members, ...extraUserIds])) {
     if (!members.includes(uid)) continue;
     emitToUser(uid, 'conversation:upsert', { conversation: serializeConversation(row, uid), users });

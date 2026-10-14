@@ -357,6 +357,19 @@ export async function createGroup(userIds: number[], name?: string) {
   return res.conversation;
 }
 
+export async function acceptGroupInvite(conversationId: number) {
+  const res = await api.post<{ conversation: Conversation; users: PublicUser[] }>(`/api/group-invites/${conversationId}/accept`);
+  data.removeGroupInvite(conversationId);
+  data.upsertUsers(res.users);
+  data.upsertConversation(res.conversation);
+  navigate({ view: 'chat', conversationId });
+}
+
+export async function declineGroupInvite(conversationId: number) {
+  await api.post(`/api/group-invites/${conversationId}/decline`);
+  data.removeGroupInvite(conversationId);
+}
+
 export async function setConversationPrefs(id: number, prefs: { pinned?: boolean; muted?: boolean }) {
   data.patchConversation(id, prefs);
   await api.put(`/api/conversations/${id}/prefs`, prefs);
