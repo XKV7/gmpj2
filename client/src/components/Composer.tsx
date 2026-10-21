@@ -13,6 +13,7 @@ import { useChatContext } from '../hooks/useChatContext';
 import { Avatar } from './Avatar';
 import { EmojiPicker } from './EmojiPicker';
 import { Icon } from './Icon';
+import { Markdown } from './Markdown';
 
 // ───── 보내기 전 첨부 파일 (대화방별) ─────
 export const useComposerFiles = create<Record<number, File[]>>(() => ({}));
@@ -73,6 +74,8 @@ export function Composer({ convId, placeholder }: { convId: number; placeholder?
   const text = useUI((s) => s.drafts[convId] ?? '');
   const replyId = useUI((s) => s.replyTo[convId] ?? null);
   const enterToSend = useUI((s) => s.settings.enterToSend);
+  const mdMode = useUI((s) => s.settings.markdownMode);
+  const [preview, setPreview] = useState(false);
   const replyMsg = useData((s) => (replyId ? s.chats[convId]?.messages.find((m) => m.id === replyId) : undefined));
   const files = useComposerFiles((s) => s[convId]) ?? [];
   const typing = useData((s) => s.typing[convId]);
@@ -150,7 +153,8 @@ export function Composer({ convId, placeholder }: { convId: number; placeholder?
       return;
     }
     const content = encodeMentions(trimmed, candidates, allowEveryone);
-    queueMessage(convId, content, files, replyId);
+    queueMessage(convId, content, files, replyId, mdMode);
+    setPreview(false);
     setText('');
     useComposerFiles.setState({ [convId]: [] });
     ui.setReply(convId, null);
@@ -275,6 +279,12 @@ export function Composer({ convId, placeholder }: { convId: number; placeholder?
             ))}
           </div>
         )}
+        {mdMode && preview && text.trim() && (
+          <div className="md-preview">
+            <div className="md-preview-title">미리보기 <small>보내면 이렇게 보여요</small></div>
+            <Markdown content={encodeMentions(text, candidates, allowEveryone)} full />
+          </div>
+        )}
         <div className="composer-row">
           <button className="composer-btn" onClick={() => fileRef.current?.click()} aria-label="파일 첨부" data-tip="파일 첨부">
             <Icon name="paperclip" size={20} />
@@ -294,7 +304,7 @@ export function Composer({ convId, placeholder }: { convId: number; placeholder?
             className="composer-input"
             rows={1}
             value={text}
-            placeholder={placeholder ?? `${target}에 메시지 보내기`}
+            placeholder={(placeholder ?? `${target}에 메시지 보내기`) + (mdMode ? ' (마크다운)' : '')}
             maxLength={LIMITS.MESSAGE_MAX + 100}
             onChange={(e) => {
               setText(e.target.value);
@@ -313,6 +323,24 @@ export function Composer({ convId, placeholder }: { convId: number; placeholder?
             }}
             aria-label="메시지 입력"
           />
+          {mdMode && (
+            <button className={`composer-btn ${preview ? 'on' : ''}`} onClick={() => setPreview((v) => !v)} aria-label="마크다운 미리보기" aria-pressed={preview} data-tip="미리보기">
+              <Icon name="eye" size={19} />
+            </button>
+          )}
+          <button
+            className={`composer-btn md-toggle ${mdMode ? 'on' : ''}`}
+            onClick={() => {
+              ui.updateSettings({ markdownMode: !mdMode });
+              if (mdMode) setPreview(false);
+              ui.toast(mdMode ? '마크다운 끔: 쓴 글자 그대로 보내요.' : '마크다운 켬: # 제목, 표, 목록, **굵게** 등이 서식으로 보여요.');
+            }}
+            aria-label="마크다운 모드"
+            aria-pressed={mdMode}
+            data-tip={mdMode ? '마크다운 끄기' : '마크다운으로 보내기'}
+          >
+            MD
+          </button>
           <button className="composer-btn" onClick={(e) => setEmojiAnchor(e.currentTarget)} aria-label="이모지" data-tip="이모지">
             <Icon name="smile" size={20} />
           </button>

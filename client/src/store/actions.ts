@@ -181,7 +181,7 @@ function clearOutboxStorage() {
   }
 }
 
-export function queueMessage(convId: number, content: string, files: File[], replyToId: number | null) {
+export function queueMessage(convId: number, content: string, files: File[], replyToId: number | null, markdown = false) {
   const uploads: UploadItem[] = files.map((f) => ({
     localId: uid(),
     file: f,
@@ -195,6 +195,7 @@ export function queueMessage(convId: number, content: string, files: File[], rep
     clientId: uid(),
     conversationId: convId,
     content,
+    markdown,
     replyToId,
     uploads,
     status: uploads.length ? 'uploading' : 'queued',
@@ -248,6 +249,7 @@ export function pumpOutbox() {
           const { message } = await emitAck('message:send', {
             conversationId: next.conversationId,
             content: next.content,
+            markdown: !!next.markdown,
             clientId: next.clientId,
             replyToId: next.replyToId,
             attachmentIds: next.uploads.map((u) => u.attachment!.id),

@@ -177,7 +177,7 @@ export function ThreadPanel({ threadId }: { threadId: number }) {
                 <strong>{author?.nickname}</strong>
                 <small className="muted">{formatShort(root.createdAt)}</small>
               </div>
-              {root.deleted ? <p className="muted">삭제된 메시지예요.</p> : <Markdown content={root.content} />}
+              {root.deleted ? <p className="muted">삭제된 메시지예요.</p> : <Markdown content={root.content} full={root.markdown} />}
               <div className="thread-root-divider"><span>스레드가 여기서 시작돼요</span></div>
             </div>
           )
@@ -304,7 +304,7 @@ export function PinsPanel({ convId }: { convId: number }) {
                   </button>
                 )}
               </div>
-              <div className="pin-content"><Markdown content={m.content} /></div>
+              <div className="pin-content"><Markdown content={m.content} full={m.markdown} /></div>
               {m.attachments.length > 0 && <small className="muted">📎 첨부 {m.attachments.length}개</small>}
               <button className="link-btn" onClick={() => void jumpToMessage(convId, m.id)}>메시지로 이동 →</button>
             </div>

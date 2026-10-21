@@ -387,3 +387,46 @@ test('파일 전송(진행률·미리보기) · 통화 거절', async () => {
   await expect(B.page.locator('.call-stage')).toHaveCount(0);
   await expect(B.page.locator('.msg-system', { hasText: '통화를 거절했어요' })).toBeVisible();
 });
+
+const TIER_TABLE = `### 티어리스트
+| 티어 | 영웅 | 광역 DPS | 단일 DPS | 첫 6초 순간 화력 | 지난번 대비 | 이유 |
+|---|---|---|---|---|---|---|
+| **S** | 아셴 ★7 | **2411** | 870 | **29.4k** | = | 광역·순간 화력 1위. 패시브 창과 궁극기가 그대로 강함 |
+| **S** | 카일루스 ★7 | 2400 | 893 | 20.1k | 순간 화력 13k → 20k | 새 궁극기 「천구의 심판」(시간 정지 + 장검 비)으로 순간 화력이 크게 오름 |
+| **S** | 한별 ★7 | 2037 | **1018** | 15.2k | = | 단일 1위. 표식(받는 피해 2배·피해 공유)으로 보스전 최강 |
+| **A** | 노엘 ★7 | 1773 | 718 | 16.7k | 1075 → 1773 ↑ | 배율 상향으로 ★7다워짐. 무적이 가장 많아 생존력 1위 |
+| **B** | 아스트랄 ★7 | 1254 | 570 | 8.1k | = | 화력은 ★7 중 가장 낮음. 결계(받는 피해 -30%)와 궁극기(-50%)로 생존형 |
+| **C** | 잭 ★6 | 619 | 332 | 4.5k | = | 룰렛·카드 운에 따라 크게 흔들림. 이번엔 운이 나빴음(이전 측정 단일 442)|
+
+- [x] 측정 완료
+- [ ] 궁극기 추가 예정
+![스크린샷](https://example.com/tracker.png) [원본 표](https://example.com/tier)`;
+
+test('마크다운 모드: 표·제목·목록 렌더링, 외부 이미지 차단, 끄면 쓴 그대로', async () => {
+  await A.page.getByLabel('홈').click();
+  await A.page.locator('.chat-row', { hasText: 'E2E 그룹' }).click();
+  await B.page.getByLabel('홈').click();
+  await B.page.locator('.chat-row', { hasText: 'E2E 그룹' }).click();
+  // MD 켜기 + 미리보기
+  await A.page.getByLabel('마크다운 모드').click();
+  await composer(A.page).fill(TIER_TABLE);
+  await A.page.getByLabel('마크다운 미리보기').click();
+  await expect(A.page.locator('.md-preview table tbody tr')).toHaveCount(6);
+  await composer(A.page).press('Enter');
+  // 받는 쪽: 진짜 표로 보인다
+  const sent = msg(B.page, '티어리스트');
+  await expect(sent.locator('.md-h3')).toHaveText('티어리스트');
+  await expect(sent.locator('table thead th')).toHaveCount(7);
+  await expect(sent.locator('table tbody tr')).toHaveCount(6);
+  await expect(sent.locator('table tbody tr').first().locator('td strong').first()).toHaveText('S');
+  await expect(sent.locator('.md-task input')).toHaveCount(2);
+  // 외부 이미지는 불러오지 않는다, [텍스트](링크)는 링크
+  await expect(sent.locator('img')).toHaveCount(0);
+  await expect(sent.locator('.md-image-blocked')).toContainText('스크린샷');
+  await expect(sent.getByRole('link', { name: '원본 표' })).toHaveAttribute('href', 'https://example.com/tier');
+  await shot(B.page, 'desktop-dark-markdown-table');
+  // MD 끄면 쓴 그대로
+  await A.page.getByLabel('마크다운 모드').click();
+  await send(A.page, '그냥 **별표** 그대로 # 해시');
+  await expect(msg(B.page, '그냥 **별표** 그대로 # 해시').locator('strong')).toHaveCount(0);
+});

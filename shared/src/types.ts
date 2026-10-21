@@ -103,6 +103,8 @@ export interface Message {
   authorId: number;
   type: MessageType;
   content: string;
+  /** 보낸 사람이 마크다운 모드로 보냈는지 (아니면 쓴 그대로 표시) */
+  markdown: boolean;
   clientId: string | null;
   replyTo: ReplyPreview | null;
   attachments: Attachment[];

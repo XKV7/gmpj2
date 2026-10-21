@@ -28,6 +28,7 @@ export interface OutboxItem {
   clientId: string;
   conversationId: number;
   content: string;
+  markdown: boolean;
   replyToId: number | null;
   uploads: UploadItem[];
   status: 'queued' | 'uploading' | 'sending' | 'failed';

@@ -242,7 +242,7 @@ export const MessageItem = memo(function MessageItem({ m, grouped, ctx, editing 
 
   return (
     <div
-      className={`msg ${mine ? 'mine' : ''} ${m.replyTo ? 'has-reply' : ''} ${grouped ? 'grouped' : ''} ${mentioned ? 'mentioned' : ''} ${editing ? 'editing' : ''} ${menu.menu || picker ? 'active' : ''}`}
+      className={`msg ${mine ? 'mine' : ''} ${m.markdown ? 'is-md' : ''} ${m.replyTo ? 'has-reply' : ''} ${grouped ? 'grouped' : ''} ${mentioned ? 'mentioned' : ''} ${editing ? 'editing' : ''} ${menu.menu || picker ? 'active' : ''}`}
       data-mid={m.id}
       onContextMenu={(e) => {
         if ((e.target as HTMLElement).closest('a, img, video, textarea')) return;
@@ -289,7 +289,7 @@ export const MessageItem = memo(function MessageItem({ m, grouped, ctx, editing 
             <div className="msg-line">
               {m.content && (
                 <div className="msg-bubble">
-                  <Markdown content={m.content} />
+                  <Markdown content={m.content} full={m.markdown} />
                 </div>
               )}
               <div className="msg-meta">
@@ -338,7 +338,7 @@ export function PendingMessage({ item, grouped }: { item: OutboxItem; grouped: b
   if (!me) return null;
   const failed = item.status === 'failed';
   return (
-    <div className={`msg mine pending ${grouped ? 'grouped' : ''} ${failed ? 'failed' : ''}`}>
+    <div className={`msg mine pending ${item.markdown ? 'is-md' : ''} ${grouped ? 'grouped' : ''} ${failed ? 'failed' : ''}`}>
       {replyTo && (
         <div className="msg-reply static">
           <span className="reply-spine" />
@@ -350,7 +350,7 @@ export function PendingMessage({ item, grouped }: { item: OutboxItem; grouped: b
         <div className="msg-main">
           {item.content && (
             <div className="msg-line">
-              <div className="msg-bubble"><Markdown content={item.content} /></div>
+              <div className="msg-bubble"><Markdown content={item.content} full={item.markdown} /></div>
               <div className="msg-meta"><time>{formatTime(item.createdAt)}</time></div>
             </div>
           )}

@@ -309,3 +309,39 @@ a.attach-file .icon:last-child { color: var(--text-3); }
 .add-friend-box input { flex: 1; min-width: 0; border: none; background: none; outline: none; height: 38px; font-size: 15px; }
 .add-friend .form-ok, .add-friend .form-error { margin-top: 8px; }
 .add-friend.compact .add-friend-box { flex-wrap: wrap; }
+
+/* ───────── 마크다운 모드 메시지 ───────── */
+.md-plain .md-p { white-space: pre-wrap; }
+.msg.is-md .msg-main { max-width: min(920px, 92%); }
+.msg.is-md .msg-bubble { min-width: 0; max-width: 100%; }
+.md-full > * + * { margin-top: 6px; }
+.md-h { font-weight: 800; line-height: 1.3; letter-spacing: -.01em; margin: 4px 0 2px; }
+.md-h1 { font-size: 1.35em; }
+.md-h2 { font-size: 1.2em; }
+.md-h3 { font-size: 1.07em; }
+.md-hr { border: none; height: 1px; background: var(--border-strong); margin: 10px 0; }
+.md-list { margin: 0; padding-left: 1.4em; }
+.md-list li { margin: 2px 0; }
+.md-list li::marker { color: var(--text-3); }
+.md-list .md-list { margin-top: 2px; }
+.md-task { list-style: none; margin-left: -1.3em; display: block; }
+.md-task > input { margin: 0 6px 0 0; vertical-align: -2px; accent-color: var(--accent); }
+.md-quote > * + * { margin-top: 4px; }
+.md-image-blocked { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 8px; background: var(--surface-3); color: var(--text-2); font-size: .92em; }
+.md-image-blocked small { color: var(--text-3); }
+/* 표: 말풍선 안에서 가로로 스크롤 */
+.md-table-wrap { max-width: 100%; overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); }
+.md-table { border-collapse: collapse; font-size: 13.5px; width: max-content; min-width: 100%; }
+.md-table th, .md-table td { padding: 7px 11px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+.md-table td { max-width: 360px; white-space: normal; word-break: keep-all; overflow-wrap: anywhere; }
+.md-table th { background: var(--surface-2); font-weight: 800; white-space: nowrap; position: sticky; top: 0; }
+.md-table tbody tr:last-child td { border-bottom: none; }
+.md-table tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--surface-2) 45%, transparent); }
+.md-table th + th, .md-table td + td { border-left: 1px solid var(--border); }
+
+/* 입력창 MD 버튼 · 미리보기 */
+.composer-btn.md-toggle { font-size: 11.5px; font-weight: 900; letter-spacing: .02em; width: auto; padding: 0 8px; }
+.composer-btn.on { color: var(--accent); background: var(--accent-soft); }
+.md-preview { max-height: 40vh; overflow: auto; margin: 8px 8px 0; padding: 10px 12px; border-radius: var(--radius-md); background: var(--surface); border: 1px dashed var(--accent-soft-2); }
+.md-preview-title { font-size: 11.5px; font-weight: 800; color: var(--accent); margin-bottom: 6px; }
+.md-preview-title small { color: var(--text-3); font-weight: 500; margin-left: 4px; }

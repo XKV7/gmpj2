@@ -19,6 +19,7 @@ export interface MessageRow {
   author_id: number;
   type: 'text' | 'system';
   content: string;
+  markdown: number;
   client_id: string | null;
   reply_to_id: number | null;
   mentions_everyone: number;
@@ -123,6 +124,7 @@ export function hydrateMessages(rows: MessageRow[]): Message[] {
       authorId: r.author_id,
       type: r.type,
       content: deleted ? '' : r.content,
+      markdown: !!r.markdown,
       clientId: r.client_id,
       replyTo: r.reply_to_id ? (replies.get(r.reply_to_id) ?? { id: r.reply_to_id, authorId: 0, content: '', deleted: true, attachmentCount: 0 }) : null,
       attachments: deleted ? [] : (attachments.get(r.id) ?? []),
@@ -204,6 +206,7 @@ export interface SendInput {
   clientId: string;
   replyToId?: number | null;
   attachmentIds: number[];
+  markdown?: boolean;
 }
 
 /** 메시지 전송. 같은 clientId로 다시 보내면 새로 만들지 않고 기존 메시지를 돌려준다(중복 방지). */
@@ -233,9 +236,9 @@ export function sendMessage(userId: number, input: SendInput): { message: Messag
   const id = db().transaction(() => {
     const id = Number(
       db().prepare(
-        `INSERT INTO messages (conversation_id, author_id, type, content, client_id, reply_to_id, mentions_everyone, created_at, updated_at)
-         VALUES (?, ?, 'text', ?, ?, ?, ?, ?, ?)`,
-      ).run(input.conversationId, userId, content, input.clientId, input.replyToId ?? null, mentions.everyone ? 1 : 0, t, t).lastInsertRowid,
+        `INSERT INTO messages (conversation_id, author_id, type, content, markdown, client_id, reply_to_id, mentions_everyone, created_at, updated_at)
+         VALUES (?, ?, 'text', ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(input.conversationId, userId, content, input.markdown ? 1 : 0, input.clientId, input.replyToId ?? null, mentions.everyone ? 1 : 0, t, t).lastInsertRowid,
     );
     if (attachmentIds.length) {
       db().prepare(`UPDATE attachments SET message_id = ? WHERE id IN (${inList(attachmentIds.length)})`).run(id, ...attachmentIds);

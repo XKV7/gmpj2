@@ -74,6 +74,7 @@ export const sendMessageSchema = z.object({
   clientId: z.string().min(8).max(64),
   replyToId: id.nullish(),
   attachmentIds: z.array(id).max(LIMITS.ATTACHMENTS_PER_MESSAGE).default([]),
+  markdown: z.boolean().default(false),
 });
 
 export const editMessageSchema = z.object({

@@ -36,6 +36,8 @@ export interface Settings {
   outputDeviceId: string;
   videoDeviceId: string;
   enterToSend: boolean;
+  /** 입력창 MD 버튼: 켜 두면 보내는 메시지를 마크다운으로 표시 */
+  markdownMode: boolean;
 }
 
 const SETTINGS_KEY = 'moyeo:settings';
@@ -47,6 +49,7 @@ const defaults: Settings = {
   outputDeviceId: 'default',
   videoDeviceId: 'default',
   enterToSend: true,
+  markdownMode: false,
 };
 
 function loadSettings(): Settings {

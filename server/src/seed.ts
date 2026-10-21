@@ -39,7 +39,9 @@ export async function seedDemo(): Promise<{ inviteCodes: string[] }> {
   let n = 0;
   const say = (who: number, convId: number, content: string, extra: { replyToId?: number } = {}) => {
     tick(1 + Math.random() * 3);
-    return sendMessage(who, { conversationId: convId, content, clientId: `seed-${++n}`, attachmentIds: [], replyToId: extra.replyToId }).message;
+    // 서식 기호가 들어간 데모 메시지는 마크다운 모드로 보낸 것으로 저장
+    const markdown = /\*\*|```|~~|`|^#{1,3} |\|/m.test(content);
+    return sendMessage(who, { conversationId: convId, content, clientId: `seed-${++n}`, attachmentIds: [], replyToId: extra.replyToId, markdown }).message;
   };
 
   // 친구 관계: 민지는 모두와 친구, 나머지도 일부 친구. 하은 → 도현 요청은 대기 중
