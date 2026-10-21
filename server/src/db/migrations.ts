@@ -192,4 +192,17 @@ CREATE INDEX group_invites_user ON group_invites(user_id);
     name: 'markdown flag on messages',
     sql: `ALTER TABLE messages ADD COLUMN markdown INTEGER NOT NULL DEFAULT 0;`,
   },
+  {
+    version: 4,
+    name: 'server ban list',
+    sql: `
+CREATE TABLE server_bans (
+  server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  banned_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (server_id, user_id)
+);
+`,
+  },
 ];

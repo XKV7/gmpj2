@@ -179,6 +179,15 @@ export interface InvitePreview {
   server: { id: number; name: string; icon: string | null; memberCount: number };
   expiresAt: number | null;
   alreadyMember: boolean;
+  /** 이 서버에서 추방·차단되어 참가할 수 없음 */
+  banned: boolean;
+}
+
+/** 서버 차단 목록(블랙리스트) 항목 */
+export interface ServerBan {
+  userId: number;
+  bannedBy: number | null;
+  createdAt: number;
 }
 
 export interface VoiceParticipant {

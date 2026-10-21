@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   canActOnMember, canManageRole, computePermissions, hasPerm, highestRolePosition, Perm, PERMISSION_LABELS, ROLE_COLORS,
-  type Invite, type InvitePreview, type PermKey, type Role,
+  type Invite, type InvitePreview, type PermKey, type PublicUser, type Role, type ServerBan,
 } from '@moyeo/shared';
 import { api, errorMessage, uploadFile } from '../lib/api';
-import { formatRelativeFuture } from '../lib/format';
+import { formatRelativeFuture, formatShort } from '../lib/format';
 import { createServer, joinInvite } from '../store/actions';
-import { useData } from '../store/data';
+import { data, useData } from '../store/data';
 import { navigate, ui, type ModalSpec } from '../store/ui';
 import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
@@ -120,6 +120,12 @@ export function JoinInviteModal({ code }: { code: string }) {
             <p className="muted">서버에 초대받았어요</p>
             <h3>{preview.server.name}</h3>
             <p className="muted"><span className="dot-online" /> 멤버 {preview.server.memberCount}명 · {formatRelativeFuture(preview.expiresAt)}</p>
+            {preview.banned ? (
+              <>
+                <p className="form-error center"><Icon name="slash" size={14} /> 이 서버에서 추방되어 참가할 수 없어요.</p>
+                <button className="btn btn-ghost" onClick={ui.closeModal}>닫기</button>
+              </>
+            ) : (
             <button
               className="btn btn-primary btn-lg full"
               disabled={busy}
@@ -142,6 +148,7 @@ export function JoinInviteModal({ code }: { code: string }) {
             >
               {preview.alreadyMember ? '서버로 이동' : busy ? '참가하는 중…' : '참가하기'}
             </button>
+            )}
           </>
         )}
       </div>
@@ -315,7 +322,7 @@ export function EditChannelModal({ channelId }: { channelId: number }) {
 
 // ───── 서버 설정 ─────
 
-type SettingsTab = 'overview' | 'roles' | 'members' | 'invites' | 'categories';
+type SettingsTab = 'overview' | 'roles' | 'members' | 'invites' | 'categories' | 'bans';
 
 export function ServerSettingsModal({ serverId, tab: initialTab }: { serverId: number; tab?: SettingsTab }) {
   const { server, can } = useServerPerms(serverId);
@@ -327,6 +334,7 @@ export function ServerSettingsModal({ serverId, tab: initialTab }: { serverId: n
     { id: 'members', label: '멤버', icon: 'users', show: true },
     { id: 'categories', label: '카테고리', icon: 'folder', show: can(Perm.MANAGE_CHANNELS) },
     { id: 'invites', label: '초대 링크', icon: 'link', show: can(Perm.CREATE_INVITE) },
+    { id: 'bans', label: '차단 목록', icon: 'slash', show: can(Perm.KICK_MEMBERS) },
   ];
   return (
     <Modal title="서버 설정" subtitle={server.name} size="xl" className="settings-modal">
@@ -342,6 +350,7 @@ export function ServerSettingsModal({ serverId, tab: initialTab }: { serverId: n
           {tab === 'members' && <MembersTab serverId={serverId} />}
           {tab === 'categories' && <CategoriesTab serverId={serverId} />}
           {tab === 'invites' && <InvitesTab serverId={serverId} />}
+          {tab === 'bans' && <BansTab serverId={serverId} />}
         </div>
       </div>
     </Modal>
@@ -594,7 +603,7 @@ function MembersTab({ serverId }: { serverId: number }) {
               {can(Perm.KICK_MEMBERS) && canAct && (
                 <button
                   className="btn btn-danger-soft btn-xs"
-                  onClick={() => ui.confirm({ title: `${u!.nickname}님 추방`, message: `${u!.nickname}님을 서버에서 내보낼까요?`, confirmLabel: '추방', danger: true, onConfirm: () => api.del(`/api/servers/${serverId}/members/${m.userId}`).then(() => undefined) })}
+                  onClick={() => ui.confirm({ title: `${u!.nickname}님 추방`, message: KICK_MESSAGE(u!.nickname), confirmLabel: '추방', danger: true, onConfirm: () => api.del(`/api/servers/${serverId}/members/${m.userId}`).then(() => undefined) })}
                 >
                   추방
                 </button>
@@ -661,6 +670,80 @@ function InvitesTab({ serverId }: { serverId: number }) {
               <button className="icon-btn tiny danger" aria-label="삭제" onClick={() => api.del(`/api/servers/${serverId}/invites/${inv.code}`).then(load).catch(ui.error)}><Icon name="trash" size={14} /></button>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export const KICK_MESSAGE = (name: string) =>
+  `${name}님을 서버에서 내보낼까요?\n추방하면 차단 목록에 올라가 초대 링크로도 다시 들어올 수 없어요. (서버 설정 → 차단 목록에서 해제 가능)`;
+
+function BansTab({ serverId }: { serverId: number }) {
+  const users = useData((s) => s.users);
+  const [bans, setBans] = useState<ServerBan[] | null>(null);
+  const [username, setUsername] = useState('');
+  const [busy, setBusy] = useState(false);
+  const load = () =>
+    api.get<{ bans: ServerBan[]; users: PublicUser[] }>(`/api/servers/${serverId}/bans`)
+      .then((r) => {
+        data.upsertUsers(r.users);
+        setBans(r.bans);
+      })
+      .catch(ui.error);
+  useEffect(() => {
+    void load();
+  }, [serverId]);
+  const addBan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!username.trim()) return;
+    setBusy(true);
+    try {
+      const r = await api.post<{ wasMember: boolean }>(`/api/servers/${serverId}/bans`, { username: username.trim() });
+      ui.toast(r.wasMember ? '서버에서 내보내고 차단했어요.' : '차단 목록에 추가했어요. 이 사람은 서버에 들어올 수 없어요.', 'success');
+      setUsername('');
+      await load();
+    } catch (err) {
+      ui.error(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="settings-section">
+      <h3>차단 목록</h3>
+      <p className="muted small">여기 있는 사람은 어떤 초대 링크로도 이 서버에 들어올 수 없어요. 멤버를 추방하면 자동으로 추가돼요.</p>
+      <form className="invite-link-box" onSubmit={addBan}>
+        <input className="input" placeholder="아이디로 차단 추가 (멤버면 추방도 함께)" value={username} onChange={(e) => setUsername(e.target.value)} aria-label="차단할 아이디" />
+        <button className="btn btn-danger-soft" disabled={busy || !username.trim()}>차단</button>
+      </form>
+      {!bans ? (
+        <span className="spinner" />
+      ) : bans.length === 0 ? (
+        <p className="muted">차단한 사람이 없어요.</p>
+      ) : (
+        <div className="role-list">
+          {bans.map((b) => {
+            const u = users[b.userId];
+            return (
+              <div key={b.userId} className="role-item ban-item">
+                <Avatar src={u?.avatar} name={u?.nickname ?? '?'} color={u?.bannerColor} size={32} />
+                <div className="grow">
+                  <strong>{u?.nickname ?? '알 수 없음'}</strong> <small className="muted">@{u?.username}</small>
+                  <div className="small muted">{b.bannedBy ? `${users[b.bannedBy]?.nickname ?? '?'}님이 차단 · ` : ''}{formatShort(b.createdAt)}</div>
+                </div>
+                <button
+                  className="btn btn-soft btn-xs"
+                  onClick={() => ui.confirm({
+                    title: '차단 해제', message: `${u?.nickname ?? '이 사용자'}님의 차단을 해제할까요? 초대 링크로 다시 들어올 수 있게 돼요.`, confirmLabel: '해제',
+                    onConfirm: () => api.del(`/api/servers/${serverId}/bans/${b.userId}`).then(() => { ui.toast('차단을 해제했어요.', 'success'); void load(); }),
+                  })}
+                >
+                  차단 해제
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
 import {
   ALL_PERMISSIONS, DEFAULT_EVERYONE_PERMISSIONS, Perm, canActOnMember, canManageRole, computePermissions, hasPerm,
-  highestRolePosition, type Category, type Invite, type InvitePreview, type PublicUser, type Role, type Server, type ServerMember,
+  highestRolePosition, type Category, type Invite, type InvitePreview, type PublicUser, type Role, type Server, type ServerBan, type ServerMember,
 } from '@moyeo/shared';
 import { db } from '../db/index.ts';
 import { badRequest, forbidden, notFound } from '../lib/errors.ts';
@@ -160,7 +160,51 @@ export function kickMember(ctx: ServerCtx, targetId: number) {
   if (!canActOnMember(like(ctx), ctx.userId, ctx.memberRoleIds, targetId, targetRoles)) {
     throw forbidden('나보다 높거나 같은 역할의 멤버는 추방할 수 없어요.');
   }
-  removeMember(ctx.server.id, targetId);
+  db().transaction(() => {
+    removeMember(ctx.server.id, targetId);
+    // 추방한 사람은 차단 목록에 올려 다시 들어오지 못하게 한다
+    db().prepare('INSERT OR REPLACE INTO server_bans (server_id, user_id, banned_by, created_at) VALUES (?, ?, ?, ?)').run(ctx.server.id, targetId, ctx.userId, now());
+  })();
+}
+
+// ───────────── 차단 목록 (블랙리스트) ─────────────
+
+export function isBanned(serverId: number, userId: number): boolean {
+  return !!db().prepare('SELECT 1 FROM server_bans WHERE server_id = ? AND user_id = ?').get(serverId, userId);
+}
+
+export function listBans(ctx: ServerCtx): ServerBan[] {
+  requirePerm(ctx, Perm.KICK_MEMBERS, '차단 목록을 볼 권한이 없어요.');
+  const rows = db().prepare('SELECT user_id, banned_by, created_at FROM server_bans WHERE server_id = ? ORDER BY created_at DESC').all(ctx.server.id) as {
+    user_id: number; banned_by: number | null; created_at: number;
+  }[];
+  return rows.map((r) => ({ userId: r.user_id, bannedBy: r.banned_by, createdAt: r.created_at }));
+}
+
+/** 아이디로 차단: 멤버면 추방과 함께, 멤버가 아니면 미리 차단 목록에 올린다. 멤버였는지 돌려준다. */
+export function banByUserId(ctx: ServerCtx, targetId: number): { wasMember: boolean } {
+  requirePerm(ctx, Perm.KICK_MEMBERS, '멤버를 차단할 권한이 없어요.');
+  if (targetId === ctx.userId) throw badRequest('자기 자신은 차단할 수 없어요.');
+  if (targetId === ctx.server.owner_id) throw forbidden('서버 소유자는 차단할 수 없어요.');
+  if (isServerMember(ctx.server.id, targetId)) {
+    kickMember(ctx, targetId);
+    return { wasMember: true };
+  }
+  if (isBanned(ctx.server.id, targetId)) throw badRequest('이미 차단한 사용자예요.');
+  db().prepare('INSERT INTO server_bans (server_id, user_id, banned_by, created_at) VALUES (?, ?, ?, ?)').run(ctx.server.id, targetId, ctx.userId, now());
+  return { wasMember: false };
+}
+
+export function unbanMember(ctx: ServerCtx, userId: number) {
+  requirePerm(ctx, Perm.KICK_MEMBERS, '차단을 해제할 권한이 없어요.');
+  const info = db().prepare('DELETE FROM server_bans WHERE server_id = ? AND user_id = ?').run(ctx.server.id, userId);
+  if (info.changes === 0) throw notFound('차단 목록에 없는 사용자예요.');
+}
+
+/** 서버에 멤버를 넣는 유일한 함수 — 모든 입장 경로가 여기서 차단 여부를 확인한다 */
+function addServerMember(serverId: number, userId: number) {
+  if (isBanned(serverId, userId)) throw forbidden('이 서버에서 추방되어 다시 참가할 수 없어요.');
+  db().prepare('INSERT INTO server_members (server_id, user_id, joined_at) VALUES (?, ?, ?)').run(serverId, userId, now());
 }
 
 // ───────────── 채널 · 카테고리 ─────────────
@@ -354,6 +398,7 @@ export function previewInvite(code: string, userId: number): InvitePreview {
     server: { id: server.id, name: server.name, icon: server.icon, memberCount },
     expiresAt: inv.expiresAt,
     alreadyMember: isServerMember(inv.serverId, userId),
+    banned: isBanned(inv.serverId, userId),
   };
 }
 
@@ -362,7 +407,7 @@ export function joinByInvite(code: string, userId: number): { serverId: number; 
   return db().transaction(() => {
     const inv = usableInvite(code);
     if (isServerMember(inv.serverId, userId)) return { serverId: inv.serverId, joined: false };
-    db().prepare('INSERT INTO server_members (server_id, user_id, joined_at) VALUES (?, ?, ?)').run(inv.serverId, userId, now());
+    addServerMember(inv.serverId, userId);
     db().prepare('UPDATE invites SET uses = uses + 1 WHERE code = ?').run(code);
     return { serverId: inv.serverId, joined: true };
   })();

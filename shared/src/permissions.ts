@@ -26,7 +26,7 @@ export const PERMISSION_LABELS: Record<PermKey, { name: string; description: str
   MANAGE_SERVER: { name: '서버 관리', description: '서버 이름과 아이콘을 바꿀 수 있어요.' },
   MANAGE_CHANNELS: { name: '채널 관리', description: '채널과 카테고리를 만들고, 고치고, 지우고, 순서를 바꿀 수 있어요.' },
   MANAGE_ROLES: { name: '역할 관리', description: '자신보다 낮은 역할을 만들고 수정하고 부여할 수 있어요.' },
-  KICK_MEMBERS: { name: '멤버 추방', description: '자신보다 낮은 역할의 멤버를 서버에서 내보낼 수 있어요.' },
+  KICK_MEMBERS: { name: '멤버 추방·차단', description: '자신보다 낮은 역할의 멤버를 내보내고 다시 못 들어오게 차단하거나, 차단을 해제할 수 있어요.' },
   MANAGE_MESSAGES: { name: '메시지 관리', description: '다른 사람의 메시지를 삭제하고 메시지를 고정할 수 있어요.' },
   CREATE_INVITE: { name: '초대 링크 만들기', description: '서버 초대 링크를 만들 수 있어요.' },
   SEND_MESSAGES: { name: '메시지 보내기', description: '텍스트 채널에 메시지를 보낼 수 있어요.' },

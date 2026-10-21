@@ -111,6 +111,7 @@ npm start          # 하나의 포트(3001)에서 API + 화면을 함께 제공
 - 카테고리별 텍스트/음성 채널, **드래그 앤 드롭으로 채널·카테고리 순서 변경**, 카테고리 접기
 - 역할과 권한: 역할 만들기(이름, 색상), 10가지 권한, 역할 순서(위계), 멤버에게 역할 부여, **닉네임 색은 최상위 역할 색**
 - 멤버 목록 사이드바: 역할별 그룹 + 온라인/오프라인 구분, 우클릭으로 DM/역할 관리/추방
+- **차단 목록(블랙리스트)**: 추방하면 그 계정이 자동으로 서버 차단 목록에 올라가 예전 초대 링크든 새 링크든 다시 들어올 수 없음. 아직 멤버가 아닌 계정도 아이디로 미리 차단 가능, 서버 설정 → `차단 목록`에서 해제
 - 채널별 안 읽음 표시, 멘션 배지, 서버 아이콘에 안 읽음 점/멘션 수
 - 스레드: 메시지에서 스레드를 열어 오른쪽 패널에서 대화, 원래 메시지에 "답글 N개" 표시
 
@@ -282,6 +283,7 @@ docker run -p 3001:3001 -v moyeo-data:/data moyeo
 | `relationships` | (user_id, other_id), type = friend / incoming / outgoing / blocked | 친구·요청·차단 (양방향 행) |
 | `conversations` | id, kind = dm / group / text / voice / thread, name, icon, topic, owner_id, server_id, category_id, position, parent_id, parent_message_id, dm_key(유일), last_message_id, last_activity_at | 모든 대화 공간을 하나로: DM, 그룹, 서버 채널, 스레드 |
 | `group_invites` | (conversation_id, user_id), inviter_id | 그룹 초대장. 수락하면 `conversation_members`로 옮겨지고, 거절하면 지워짐 |
+| `server_bans` | (server_id, user_id), banned_by, created_at | 서버 차단 목록. 서버 참가는 이 표를 반드시 거침 |
 | `conversation_members` | (conversation_id, user_id), joined_after_id | DM/그룹 참여자. `joined_after_id`로 들어오기 전 메시지는 읽음 수에서 제외 |
 | `read_states` | (user_id, conversation_id), last_read_id, pinned, muted | 사용자별 읽음 위치 + 상단 고정 + 알림 끄기 |
 | `messages` | id(AUTOINCREMENT), conversation_id, author_id, type = text / system, content, client_id, reply_to_id, mentions_everyone, thread_id, pinned_at, edited_at, deleted_at, created_at, updated_at | `(author_id, client_id)` 유일 인덱스로 중복 전송 방지, `updated_at`으로 수정 동기화 |
@@ -342,16 +344,17 @@ docker run -p 3001:3001 -v moyeo-data:/data moyeo
 | `GET /api/conversations/:id/messages?before·after·around`, `…/search?q&authorId`, `…/pins` | 메시지 페이지·검색·고정 목록 |
 | `POST /api/messages/:id/thread` | 스레드 열기 |
 | `POST /api/uploads` | 파일 업로드 (multipart) |
-| `POST /api/servers`, `PATCH·DELETE /api/servers/:id`, `POST …/icon`, `…/channels`, `…/categories`, `PUT …/layout`, `…/roles`, `PUT …/roles/order`, `PUT …/members/:uid/roles`, `DELETE …/members/:uid`, `…/invites` | 서버 관리 |
+| `POST /api/servers`, `PATCH·DELETE /api/servers/:id`, `POST …/icon`, `…/channels`, `…/categories`, `PUT …/layout`, `…/roles`, `PUT …/roles/order`, `PUT …/members/:uid/roles`, `DELETE …/members/:uid`(추방+차단), `GET·POST …/bans`, `DELETE …/bans/:uid`, `…/invites` | 서버 관리 |
 | `PATCH·DELETE /api/channels/:id`, `PATCH·DELETE /api/categories/:id`, `PATCH·DELETE /api/roles/:id` | 채널·카테고리·역할 |
 | `GET /api/invites/:code`, `POST /api/invites/:code/join` | 초대 미리보기 / 참가 |
 
 ### 권한 모델
 
-- 권한은 비트 플래그입니다: `관리자`, `서버 관리`, `채널 관리`, `역할 관리`, `멤버 추방`, `메시지 관리`, `초대 링크 만들기`, `메시지 보내기`, `음성 채널 참여`, `@모두 멘션`.
+- 권한은 비트 플래그입니다: `관리자`, `서버 관리`, `채널 관리`, `역할 관리`, `멤버 추방·차단`, `메시지 관리`, `초대 링크 만들기`, `메시지 보내기`, `음성 채널 참여`, `@모두 멘션`.
 - **최종 권한** = 기본 역할(모든 멤버)의 권한 OR 부여된 역할들의 권한. `관리자`가 있으면 전부. **서버 소유자는 항상 전부**.
 - **위계**: 역할의 `position`이 클수록 높습니다. 멤버의 위계는 가진 역할 중 가장 높은 위치(소유자는 무한대).
   - 다른 멤버를 추방하거나 역할을 바꾸려면 **내 위계가 상대보다 엄격히 높아야** 합니다.
+  - 추방은 곧 차단입니다. 차단 목록 조회·추가·해제에는 `멤버 추방·차단` 권한이 필요하고, 소유자와 자기 자신은 차단할 수 없습니다.
   - 역할을 만들고/고치고/부여하려면 `역할 관리` 권한 + 그 역할이 **내 최상위 역할보다 낮아야** 합니다.
   - 내가 갖지 않은 권한 비트는 어떤 역할에도 줄 수 없습니다.
 - **닉네임 색** = 색이 지정된 역할 중 가장 높은 역할의 색.

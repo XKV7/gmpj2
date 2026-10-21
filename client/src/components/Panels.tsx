@@ -14,6 +14,7 @@ import { ConversationIcon } from './ConversationIcon';
 import { EmptyState } from './EmptyState';
 import { Icon } from './Icon';
 import { Markdown } from './Markdown';
+import { KICK_MESSAGE } from '../modals/ServerModals';
 import { useMenu } from './Menu';
 import { MessageList } from './MessageList';
 import { ListSkeleton } from './Skeleton';
@@ -107,7 +108,7 @@ export function MembersPanel({ serverId }: { serverId: number }) {
         ? [{
             label: '서버에서 추방', icon: 'logout' as const, danger: true,
             onClick: () => ui.confirm({
-              title: `${u.nickname}님 추방`, message: `${u.nickname}님을 '${server.name}'에서 내보낼까요? 초대 링크로 다시 들어올 수 있어요.`, confirmLabel: '추방', danger: true,
+              title: `${u.nickname}님 추방`, message: KICK_MESSAGE(u.nickname), confirmLabel: '추방', danger: true,
               onConfirm: async () => {
                 await api.del(`/api/servers/${serverId}/members/${u.id}`);
                 ui.toast(`${u.nickname}님을 추방했어요.`, 'success');

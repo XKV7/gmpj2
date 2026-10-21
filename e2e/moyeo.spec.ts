@@ -430,3 +430,39 @@ test('마크다운 모드: 표·제목·목록 렌더링, 외부 이미지 차�
   await send(A.page, '그냥 **별표** 그대로 # 해시');
   await expect(msg(B.page, '그냥 **별표** 그대로 # 해시').locator('strong')).toHaveCount(0);
 });
+
+test('추방하면 차단 목록에 올라가 초대 링크로 다시 못 들어온다 → 해제하면 가능', async () => {
+  await A.page.getByLabel(serverName).click();
+  // 새 초대 링크
+  await A.page.locator('.server-header').click();
+  await A.page.getByRole('menuitem', { name: '친구 초대하기' }).click();
+  await expect(A.page.getByLabel('초대 링크')).toHaveValue(/\/invite\//);
+  const link = new URL(await A.page.getByLabel('초대 링크').inputValue()).pathname;
+  await A.page.keyboard.press('Escape');
+  // 서버 설정 → 멤버 → C 추방
+  await A.page.locator('.server-header').click();
+  await A.page.getByRole('menuitem', { name: '서버 설정' }).click();
+  await A.page.locator('.settings-nav').getByRole('button', { name: '멤버' }).click();
+  await A.page.locator('.member-admin', { hasText: C.nickname }).getByRole('button', { name: '추방' }).click();
+  await expect(A.page.locator('.modal').last()).toContainText('차단 목록');
+  await A.page.locator('.modal').last().getByRole('button', { name: '추방' }).click();
+  await expect(A.page.locator('.member-admin', { hasText: C.nickname })).toHaveCount(0);
+  // C: 같은 링크로 다시 시도 → 막힘
+  await C.page.goto(link);
+  await expect(C.page.locator('.invite-preview')).toContainText('추방되어 참가할 수 없어요');
+  await expect(C.page.getByRole('button', { name: '참가하기', exact: true })).toHaveCount(0);
+  await C.page.keyboard.press('Escape');
+  // A: 차단 목록에서 해제
+  await A.page.locator('.settings-nav').getByRole('button', { name: '차단 목록' }).click();
+  const row = A.page.locator('.ban-item', { hasText: C.nickname });
+  await expect(row).toBeVisible();
+  await shot(A.page, 'desktop-light-ban-list');
+  await row.getByRole('button', { name: '차단 해제' }).click();
+  await A.page.locator('.modal').last().getByRole('button', { name: '해제' }).click();
+  await expect(row).toHaveCount(0);
+  await A.page.keyboard.press('Escape');
+  // C: 이제 참가 가능
+  await C.page.goto(link);
+  await C.page.getByRole('button', { name: '참가하기', exact: true }).click();
+  await expect(C.page.locator('.main-pane .chat-header')).toContainText('일반');
+});

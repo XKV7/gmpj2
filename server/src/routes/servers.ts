@@ -4,7 +4,8 @@ import {
   roleOrderSchema, roleSchema, updateConversationSchema, updateServerSchema, Perm,
 } from '@moyeo/shared';
 import { z } from 'zod';
-import { badRequest } from '../lib/errors.ts';
+import { badRequest, notFound } from '../lib/errors.ts';
+import { getPublicUsers, getUserByUsername } from '../services/users.ts';
 import { limits } from '../lib/rateLimit.ts';
 import { emitToRoom, emitToUser, getIo, joinUserToRoom, leaveUserFromRoom, pushPresence, pushServer } from '../realtime/hub.ts';
 import { evictFromRoom, evictFromServer } from '../realtime/voice.ts';
@@ -12,7 +13,7 @@ import { deleteChannel, getConvRow, updateConversation } from '../services/conve
 import {
   assertCategory, createCategory, createInvite, createRole, createServer, deleteCategory, deleteInvite, deleteRole, deleteServer,
   getCategoryServerId, getRole, getServerPayload, insertChannel, joinByInvite, kickMember,
-  leaveServer, listInvites, loadServerCtx, normalizeChannelName, previewInvite, renameCategory, reorderLayout, reorderRoles,
+  leaveServer, listInvites, listBans, banByUserId, unbanMember, loadServerCtx, normalizeChannelName, previewInvite, renameCategory, reorderLayout, reorderRoles,
   requirePerm, serverMemberIds, setMemberRoles, updateRole, updateServer, channelIdsOfServers,
 } from '../services/servers.ts';
 import { removeIconFile, saveIcon } from '../services/uploads.ts';
@@ -97,10 +98,30 @@ export async function serverRoutes(app: FastifyInstance) {
     const ctx = loadServerCtx(idParam(req), req.userId);
     const target = idParam(req, 'userId');
     kickMember(ctx, target);
-    evictFromServer(ctx.server.id, target, '서버에서 추방되었어요.');
-    leaveServerRooms(target, ctx.server.id);
-    emitToUser(target, 'server:remove', { serverId: ctx.server.id, reason: 'kicked' });
-    pushServer(ctx.server.id);
+    afterKick(ctx.server.id, target);
+    return { ok: true };
+  });
+
+  // ── 차단 목록 (추방한 사람은 자동으로 올라감) ──
+  app.get('/api/servers/:id/bans', async (req) => {
+    const ctx = loadServerCtx(idParam(req), req.userId);
+    const bans = listBans(ctx);
+    return { bans, users: getPublicUsers(bans.flatMap((b) => (b.bannedBy ? [b.userId, b.bannedBy] : [b.userId]))) };
+  });
+
+  app.post('/api/servers/:id/bans', async (req) => {
+    const ctx = loadServerCtx(idParam(req), req.userId);
+    const { username } = z.object({ username: z.string().trim().min(1, '아이디를 입력해 주세요.').max(40).transform((x) => x.replace(/^@/, '').toLowerCase()) }).parse(req.body);
+    const target = getUserByUsername(username);
+    if (!target) throw notFound('그런 아이디를 가진 사용자가 없어요.');
+    const { wasMember } = banByUserId(ctx, target.id);
+    if (wasMember) afterKick(ctx.server.id, target.id);
+    return { ok: true, wasMember };
+  });
+
+  app.delete('/api/servers/:id/bans/:userId', async (req) => {
+    const ctx = loadServerCtx(idParam(req), req.userId);
+    unbanMember(ctx, idParam(req, 'userId'));
     return { ok: true };
   });
 
@@ -245,6 +266,14 @@ export async function serverRoutes(app: FastifyInstance) {
     emitToUser(req.userId, 'server:upsert', payload);
     return payload;
   });
+}
+
+/** 추방 직후: 음성방에서 내보내고, 실시간 룸에서 빼고, 본인과 서버에 알린다 */
+function afterKick(serverId: number, target: number) {
+  evictFromServer(serverId, target, '서버에서 추방되었어요.');
+  leaveServerRooms(target, serverId);
+  emitToUser(target, 'server:remove', { serverId, reason: 'kicked' });
+  pushServer(serverId);
 }
 
 function getServerIdOfChannel(channelId: number): number | null {
