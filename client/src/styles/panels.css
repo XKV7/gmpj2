@@ -15,6 +15,7 @@
 .member-name { display: flex; align-items: center; gap: 4px; font-weight: 600; font-size: 14.5px; min-width: 0; }
 .member-text small { font-size: 12px; color: var(--text-3); }
 .owner-crown { color: var(--warning); flex-shrink: 0; }
+.restricted-badge { color: var(--danger); flex-shrink: 0; }
 
 .thread-panel .messages-inner { padding-top: 0; }
 .thread-root { padding: 16px; border-bottom: 1px solid var(--border); margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px; }

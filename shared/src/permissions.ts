@@ -1,4 +1,4 @@
-import type { Role, Server } from './types.ts';
+import type { MemberRestriction, Role, Server } from './types.ts';
 
 /** 서버 권한 비트 */
 export const Perm = {
@@ -12,6 +12,7 @@ export const Perm = {
   SEND_MESSAGES: 1 << 7,
   CONNECT_VOICE: 1 << 8,
   MENTION_EVERYONE: 1 << 9,
+  MODERATE_MEMBERS: 1 << 10,
 } as const;
 
 export type PermKey = keyof typeof Perm;
@@ -32,11 +33,35 @@ export const PERMISSION_LABELS: Record<PermKey, { name: string; description: str
   SEND_MESSAGES: { name: '메시지 보내기', description: '텍스트 채널에 메시지를 보낼 수 있어요.' },
   CONNECT_VOICE: { name: '음성 채널 참여', description: '음성 채널에 들어갈 수 있어요.' },
   MENTION_EVERYONE: { name: '@모두 멘션', description: '@모두 로 모든 멤버에게 알림을 보낼 수 있어요.' },
+  MODERATE_MEMBERS: { name: '멤버 활동 제한', description: '도배 등을 한 자신보다 낮은 역할의 멤버가 정해진 시간 동안 채팅이나 음성 채널을 쓰지 못하게 할 수 있어요.' },
 };
 
 export function hasPerm(perms: number, flag: number): boolean {
   if (perms & Perm.ADMINISTRATOR) return true;
   return (perms & flag) === flag;
+}
+
+/** 활동 제한이 지금 걸려 있는지 */
+export function isRestrictionActive(r: MemberRestriction | null | undefined, at = Date.now()): r is MemberRestriction {
+  return !!r && (r.until === null || r.until > at);
+}
+
+/** 활동 제한을 권한에 반영: 제한된 기능의 권한 비트를 뺀다 (관리자 권한으로도 우회할 수 없음) */
+export function applyRestriction(perms: number, r: MemberRestriction | null | undefined, at = Date.now()): number {
+  if (!isRestrictionActive(r, at)) return perms;
+  let p = perms & Perm.ADMINISTRATOR ? ALL_PERMISSIONS & ~Perm.ADMINISTRATOR : perms;
+  if (r.text) p &= ~Perm.SEND_MESSAGES;
+  if (r.voice) p &= ~Perm.CONNECT_VOICE;
+  return p;
+}
+
+/** 제한 안내 문구: "오후 3:20까지" / "해제될 때까지" */
+export function restrictionUntilText(r: MemberRestriction, at = Date.now()): string {
+  if (r.until === null) return '관리자가 해제할 때까지';
+  const d = new Date(r.until);
+  const time = d.toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
+  const sameDay = new Date(at).toDateString() === d.toDateString();
+  return `${sameDay ? '' : `${d.getMonth() + 1}월 ${d.getDate()}일 `}${time}까지`;
 }
 
 type ServerLike = Pick<Server, 'ownerId'> & { roles: Role[] };

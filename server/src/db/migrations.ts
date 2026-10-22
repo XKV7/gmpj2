@@ -205,4 +205,21 @@ CREATE TABLE server_bans (
 );
 `,
   },
+  {
+    version: 5,
+    name: 'member activity restrictions (timeout)',
+    sql: `
+CREATE TABLE member_restrictions (
+  server_id INTEGER NOT NULL REFERENCES servers(id) ON DELETE CASCADE,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  text INTEGER NOT NULL,
+  voice INTEGER NOT NULL,
+  until INTEGER,
+  reason TEXT NOT NULL DEFAULT '',
+  restricted_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  created_at INTEGER NOT NULL,
+  PRIMARY KEY (server_id, user_id)
+);
+`,
+  },
 ];

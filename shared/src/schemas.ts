@@ -123,6 +123,26 @@ export const roleSchema = z.object({
 export const roleOrderSchema = z.object({ roleIds: z.array(id) });
 export const memberRolesSchema = z.object({ roleIds: z.array(id) });
 
+/** 활동 제한 기간 선택지(초). null = 직접 해제할 때까지 */
+export const RESTRICT_DURATIONS: { sec: number | null; label: string }[] = [
+  { sec: 60, label: '1분' },
+  { sec: 5 * 60, label: '5분' },
+  { sec: 10 * 60, label: '10분' },
+  { sec: 60 * 60, label: '1시간' },
+  { sec: 24 * 60 * 60, label: '1일' },
+  { sec: 7 * 24 * 60 * 60, label: '1주' },
+  { sec: null, label: '해제할 때까지' },
+];
+
+export const restrictMemberSchema = z
+  .object({
+    text: z.boolean(),
+    voice: z.boolean(),
+    durationSec: z.number().int().min(60).max(60 * 60 * 24 * 28).nullable(),
+    reason: z.string().trim().max(200, '사유는 200자까지 쓸 수 있어요.').default(''),
+  })
+  .refine((v) => v.text || v.voice, { message: '제한할 활동을 하나 이상 골라 주세요.' });
+
 export const createInviteSchema = z.object({
   expiresInSec: z.number().int().positive().max(60 * 60 * 24 * 30).nullable(),
   maxUses: z.number().int().positive().max(1000).nullable(),

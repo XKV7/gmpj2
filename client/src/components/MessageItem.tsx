@@ -18,6 +18,8 @@ export interface MessageCtx {
   server?: Server;
   meId: number;
   canManageMessages: boolean;
+  /** 활동 제한 중: 답장·반응·수정·스레드 만들기를 숨긴다 */
+  restricted: boolean;
   inThread: boolean;
   mentionCandidates: () => import('@moyeo/shared').PublicUser[];
 }
@@ -66,7 +68,7 @@ function Attachments({ list }: { list: Attachment[] }) {
   );
 }
 
-function Reactions({ m, meId }: { m: Message; meId: number }) {
+function Reactions({ m, meId, canAdd }: { m: Message; meId: number; canAdd: boolean }) {
   const [picker, setPicker] = useState<HTMLElement | null>(null);
   const users = useData((s) => s.users);
   return (
@@ -86,9 +88,9 @@ function Reactions({ m, meId }: { m: Message; meId: number }) {
           </button>
         );
       })}
-      <button className="reaction add" onClick={(e) => setPicker(e.currentTarget)} aria-label="반응 추가">
+      {canAdd && <button className="reaction add" onClick={(e) => setPicker(e.currentTarget)} aria-label="반응 추가">
         <Icon name="smilePlus" size={16} />
-      </button>
+      </button>}
       {picker && (
         <EmojiPicker anchor={picker} onClose={() => setPicker(null)} onPick={(e) => { setPicker(null); toggleReaction(m.id, e).catch(ui.error); }} />
       )}
@@ -214,11 +216,16 @@ export const MessageItem = memo(function MessageItem({ m, grouped, ctx, editing 
     );
   }
 
+  const canWrite = !ctx.restricted;
   const items: MenuItem[] = [
-    { label: '답장', icon: 'reply', onClick: () => ui.setReply(m.conversationId, m.id) },
-    { label: '반응 추가', icon: 'smilePlus', onClick: () => setTimeout(() => setPicker(document.querySelector<HTMLElement>(`[data-mid="${m.id}"] .msg-actions`) ?? document.body)) },
-    ...(canThread ? [{ label: m.thread ? '스레드 보기' : '스레드 만들기', icon: 'thread' as const, onClick: () => (m.thread ? ui.openThread(m.thread.id) : openThreadFor(m.id).catch(ui.error)) }] : []),
-    ...(mine ? [{ label: '수정', icon: 'edit' as const, onClick: () => ui.setEditing(m.id) }] : []),
+    ...(canWrite
+      ? [
+          { label: '답장', icon: 'reply' as const, onClick: () => ui.setReply(m.conversationId, m.id) },
+          { label: '반응 추가', icon: 'smilePlus' as const, onClick: () => setTimeout(() => setPicker(document.querySelector<HTMLElement>(`[data-mid="${m.id}"] .msg-actions`) ?? document.body)) },
+        ]
+      : []),
+    ...(canThread && (canWrite || m.thread) ? [{ label: m.thread ? '스레드 보기' : '스레드 만들기', icon: 'thread' as const, onClick: () => (m.thread ? ui.openThread(m.thread.id) : openThreadFor(m.id).catch(ui.error)) }] : []),
+    ...(mine && canWrite ? [{ label: '수정', icon: 'edit' as const, onClick: () => ui.setEditing(m.id) }] : []),
     { label: '텍스트 복사', icon: 'copy', onClick: () => void navigator.clipboard?.writeText(toPlainText(m.content, nameOf)).then(() => ui.toast('복사했어요.', 'success')) },
     ...(!ctx.inThread && (!ctx.server || ctx.canManageMessages)
       ? [{ label: m.pinned ? '고정 해제' : '메시지 고정', icon: 'pin' as const, onClick: () => pinMessage(m.id, !m.pinned).then(() => ui.toast(m.pinned ? '고정을 해제했어요.' : '메시지를 고정했어요.', 'success')).catch(ui.error) }]
@@ -301,7 +308,7 @@ export const MessageItem = memo(function MessageItem({ m, grouped, ctx, editing 
             </div>
           )}
           {m.attachments.length > 0 && <Attachments list={m.attachments} />}
-          {m.reactions.length > 0 && <Reactions m={m} meId={ctx.meId} />}
+          {m.reactions.length > 0 && <Reactions m={m} meId={ctx.meId} canAdd={canWrite} />}
           {m.thread && m.thread.count > 0 && !ctx.inThread && (
             <button className="msg-thread" onClick={() => ui.openThread(m.thread!.id)}>
               <Icon name="thread" size={15} />
@@ -314,13 +321,17 @@ export const MessageItem = memo(function MessageItem({ m, grouped, ctx, editing 
       </div>
       {!editing && (
         <div className="msg-actions" role="toolbar" aria-label="메시지 동작">
-          {QUICK_REACTIONS.slice(0, 3).map((e) => (
-            <button key={e} className="quick-react" onClick={() => toggleReaction(m.id, e).catch(ui.error)} title={`${e} 반응`}>{e}</button>
-          ))}
-          <button onClick={(e) => setPicker(e.currentTarget)} data-tip="반응 추가"><Icon name="smilePlus" size={18} /></button>
-          <button onClick={() => ui.setReply(m.conversationId, m.id)} data-tip="답장"><Icon name="reply" size={18} /></button>
-          {canThread && <button onClick={() => (m.thread ? ui.openThread(m.thread.id) : openThreadFor(m.id).catch(ui.error))} data-tip="스레드"><Icon name="thread" size={18} /></button>}
-          {mine && <button onClick={() => ui.setEditing(m.id)} data-tip="수정"><Icon name="edit" size={18} /></button>}
+          {canWrite && (
+            <>
+              {QUICK_REACTIONS.slice(0, 3).map((e) => (
+                <button key={e} className="quick-react" onClick={() => toggleReaction(m.id, e).catch(ui.error)} title={`${e} 반응`}>{e}</button>
+              ))}
+              <button onClick={(e) => setPicker(e.currentTarget)} data-tip="반응 추가"><Icon name="smilePlus" size={18} /></button>
+              <button onClick={() => ui.setReply(m.conversationId, m.id)} data-tip="답장"><Icon name="reply" size={18} /></button>
+            </>
+          )}
+          {canThread && (canWrite || m.thread) && <button onClick={() => (m.thread ? ui.openThread(m.thread.id) : openThreadFor(m.id).catch(ui.error))} data-tip="스레드"><Icon name="thread" size={18} /></button>}
+          {mine && canWrite && <button onClick={() => ui.setEditing(m.id)} data-tip="수정"><Icon name="edit" size={18} /></button>}
           <button onClick={(e) => menu.open(e.currentTarget, items)} data-tip="더 보기" aria-label="더 보기"><Icon name="more" size={18} /></button>
         </div>
       )}

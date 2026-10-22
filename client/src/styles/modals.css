@@ -155,3 +155,13 @@
 .lightbox-bar { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; gap: 6px; padding: 12px 16px; color: #fff; font-weight: 600; }
 .lightbox-bar .icon-btn { color: #fff; }
 .lightbox-bar .icon-btn:hover { background: rgba(255,255,255,.12); color: #fff; }
+
+/* 활동 제한 */
+.choice > .icon:last-child { color: var(--text-3); }
+.choice.active > .icon:last-child { color: var(--accent); }
+.duration-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.duration-chips button { height: 32px; padding: 0 12px; border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-weight: 600; font-size: 13px; border: 1.5px solid transparent; transition: all var(--dur-fast); }
+.duration-chips button:hover { color: var(--text); }
+.duration-chips button.active { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.restrict-current .grow { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.restrict-current small { color: var(--text-2); }

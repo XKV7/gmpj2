@@ -1,5 +1,5 @@
 import {
-  ALL_PERMISSIONS, DEFAULT_EVERYONE_PERMISSIONS, Perm, canActOnMember, canManageRole, computePermissions, hasPerm,
+  ALL_PERMISSIONS, DEFAULT_EVERYONE_PERMISSIONS, Perm, applyRestriction, canActOnMember, isRestrictionActive, type MemberRestriction, canManageRole, computePermissions, hasPerm,
   highestRolePosition, type Category, type Invite, type InvitePreview, type PublicUser, type Role, type Server, type ServerBan, type ServerMember,
 } from '@moyeo/shared';
 import { db } from '../db/index.ts';
@@ -16,6 +16,8 @@ export interface ServerCtx {
   roles: Role[];
   userId: number;
   memberRoleIds: number[];
+  /** 권한 계산에 이미 반영된 활동 제한 */
+  restriction: MemberRestriction | null;
   perms: number;
 }
 
@@ -56,8 +58,9 @@ export function loadServerCtx(serverId: number, userId: number): ServerCtx {
   if (!isServerMember(serverId, userId)) throw forbidden('이 서버의 멤버가 아니에요.');
   const roles = getRoles(serverId);
   const memberRoleIds = getMemberRoleIds(serverId, userId);
-  const perms = computePermissions({ ownerId: server.owner_id, roles }, userId, memberRoleIds);
-  return { server, roles, userId, memberRoleIds, perms };
+  const restriction = getRestriction(serverId, userId);
+  const perms = applyRestriction(computePermissions({ ownerId: server.owner_id, roles }, userId, memberRoleIds), restriction);
+  return { server, roles, userId, memberRoleIds, restriction, perms };
 }
 
 export function requirePerm(ctx: ServerCtx, flag: number, message?: string) {
@@ -84,7 +87,10 @@ export function getServerPayload(serverId: number, forUserId: number | null): { 
     list.push(r.role_id);
     rolesByUser.set(r.user_id, list);
   }
-  const members: ServerMember[] = memberRows.map((m) => ({ userId: m.user_id, joinedAt: m.joined_at, roleIds: rolesByUser.get(m.user_id) ?? [] }));
+  const restrictions = activeRestrictions(serverId);
+  const members: ServerMember[] = memberRows.map((m) => ({
+    userId: m.user_id, joinedAt: m.joined_at, roleIds: rolesByUser.get(m.user_id) ?? [], restriction: restrictions.get(m.user_id) ?? null,
+  }));
   const server: Server = {
     id: row.id,
     name: row.name,
@@ -199,6 +205,63 @@ export function unbanMember(ctx: ServerCtx, userId: number) {
   requirePerm(ctx, Perm.KICK_MEMBERS, '차단을 해제할 권한이 없어요.');
   const info = db().prepare('DELETE FROM server_bans WHERE server_id = ? AND user_id = ?').run(ctx.server.id, userId);
   if (info.changes === 0) throw notFound('차단 목록에 없는 사용자예요.');
+}
+
+// ───────────── 활동 제한 (타임아웃) ─────────────
+
+interface RestrictionRow { user_id: number; text: number; voice: number; until: number | null; reason: string; restricted_by: number | null; created_at: number }
+
+const toRestriction = (r: RestrictionRow): MemberRestriction => ({
+  text: !!r.text, voice: !!r.voice, until: r.until, reason: r.reason, restrictedBy: r.restricted_by, createdAt: r.created_at,
+});
+
+/** 지금 걸려 있는 제한 (끝난 제한은 null) */
+export function getRestriction(serverId: number, userId: number): MemberRestriction | null {
+  const row = db().prepare('SELECT * FROM member_restrictions WHERE server_id = ? AND user_id = ?').get(serverId, userId) as RestrictionRow | undefined;
+  const r = row ? toRestriction(row) : null;
+  return isRestrictionActive(r) ? r : null;
+}
+
+function activeRestrictions(serverId: number): Map<number, MemberRestriction> {
+  const rows = db().prepare('SELECT * FROM member_restrictions WHERE server_id = ? AND (until IS NULL OR until > ?)').all(serverId, now()) as RestrictionRow[];
+  return new Map(rows.map((r) => [r.user_id, toRestriction(r)]));
+}
+
+function assertCanModerate(ctx: ServerCtx, targetId: number) {
+  requirePerm(ctx, Perm.MODERATE_MEMBERS, '멤버 활동을 제한할 권한이 없어요.');
+  if (targetId === ctx.userId) throw badRequest('자기 자신은 제한할 수 없어요.');
+  if (targetId === ctx.server.owner_id) throw forbidden('서버 소유자는 제한할 수 없어요.');
+  if (!isServerMember(ctx.server.id, targetId)) throw notFound('서버 멤버가 아니에요.');
+  if (!canActOnMember(like(ctx), ctx.userId, ctx.memberRoleIds, targetId, getMemberRoleIds(ctx.server.id, targetId))) {
+    throw forbidden('나보다 높거나 같은 역할의 멤버는 제한할 수 없어요.');
+  }
+}
+
+/** 멤버의 채팅/음성 활동을 일정 시간 막는다. 이미 제한 중이면 새 내용으로 바꾼다. 나갔다 들어와도 유지된다. */
+export function restrictMember(
+  ctx: ServerCtx,
+  targetId: number,
+  input: { text: boolean; voice: boolean; durationSec: number | null; reason: string },
+): MemberRestriction {
+  assertCanModerate(ctx, targetId);
+  const t = now();
+  const until = input.durationSec === null ? null : t + input.durationSec * 1000;
+  db().prepare(`INSERT OR REPLACE INTO member_restrictions (server_id, user_id, text, voice, until, reason, restricted_by, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(ctx.server.id, targetId, input.text ? 1 : 0, input.voice ? 1 : 0, until, input.reason, ctx.userId, t);
+  return getRestriction(ctx.server.id, targetId)!;
+}
+
+export function liftRestriction(ctx: ServerCtx, targetId: number) {
+  assertCanModerate(ctx, targetId);
+  const info = db().prepare('DELETE FROM member_restrictions WHERE server_id = ? AND user_id = ? AND (until IS NULL OR until > ?)').run(ctx.server.id, targetId, now());
+  if (info.changes === 0) throw notFound('활동이 제한된 멤버가 아니에요.');
+}
+
+/** 제한 때문에 막힌 거라면 그 사실을 알려 주는 오류를 던진다 */
+export function assertNotRestricted(ctx: ServerCtx | null, kind: 'text' | 'voice') {
+  const r = ctx?.restriction;
+  if (!r || !r[kind]) return;
+  throw forbidden(kind === 'text' ? '활동이 제한되어 지금은 메시지를 보내거나 반응을 남길 수 없어요.' : '활동이 제한되어 지금은 음성 채널에 들어갈 수 없어요.');
 }
 
 /** 서버에 멤버를 넣는 유일한 함수 — 모든 입장 경로가 여기서 차단 여부를 확인한다 */

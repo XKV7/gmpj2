@@ -133,6 +133,21 @@ export interface ServerMember {
   userId: number;
   roleIds: number[];
   joinedAt: number;
+  /** 현재 걸려 있는 활동 제한 (없거나 끝났으면 null) */
+  restriction: MemberRestriction | null;
+}
+
+/** 서버 멤버 활동 제한 (도배 등에 대한 타임아웃) */
+export interface MemberRestriction {
+  /** 메시지·답글·수정·반응·스레드 금지 */
+  text: boolean;
+  /** 음성 채널 참여 금지 */
+  voice: boolean;
+  /** 끝나는 시각(ms). null이면 직접 해제할 때까지 */
+  until: number | null;
+  reason: string;
+  restrictedBy: number | null;
+  createdAt: number;
 }
 
 export interface Category {

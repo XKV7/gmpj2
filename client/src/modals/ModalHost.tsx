@@ -1,6 +1,6 @@
 import { useUI } from '../store/ui';
 import { ConfirmModal, CropModal, PromptModal } from './CommonModals';
-import { CreateChannelModal, CreateServerModal, EditChannelModal, InviteModal, JoinInviteModal, ServerSettingsModal } from './ServerModals';
+import { CreateChannelModal, CreateServerModal, EditChannelModal, InviteModal, JoinInviteModal, RestrictMemberModal, ServerSettingsModal } from './ServerModals';
 import { AddFriendModal, CreateCategoryModal, InviteToGroupModal, NewChatModal, ProfileModal, SettingsModal } from './UserModals';
 
 export function ModalHost() {
@@ -25,6 +25,7 @@ export function ModalHost() {
           case 'prompt': return <PromptModal key={key} spec={m} />;
           case 'cropImage': return <CropModal key={key} spec={m} />;
           case 'addFriend': return <AddFriendModal key={key} />;
+          case 'restrictMember': return <RestrictMemberModal key={key} serverId={m.serverId} userId={m.userId} />;
           default: return null;
         }
       })}

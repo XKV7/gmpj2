@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import {
   createCategorySchema, createChannelSchema, createInviteSchema, createServerSchema, memberRolesSchema, reorderSchema,
-  roleOrderSchema, roleSchema, updateConversationSchema, updateServerSchema, Perm,
+  restrictMemberSchema, roleOrderSchema, roleSchema, updateConversationSchema, updateServerSchema, Perm,
 } from '@moyeo/shared';
 import { z } from 'zod';
 import { badRequest, notFound } from '../lib/errors.ts';
@@ -13,7 +13,7 @@ import { deleteChannel, getConvRow, updateConversation } from '../services/conve
 import {
   assertCategory, createCategory, createInvite, createRole, createServer, deleteCategory, deleteInvite, deleteRole, deleteServer,
   getCategoryServerId, getRole, getServerPayload, insertChannel, joinByInvite, kickMember,
-  leaveServer, listInvites, listBans, banByUserId, unbanMember, loadServerCtx, normalizeChannelName, previewInvite, renameCategory, reorderLayout, reorderRoles,
+  leaveServer, liftRestriction, restrictMember, listInvites, listBans, banByUserId, unbanMember, loadServerCtx, normalizeChannelName, previewInvite, renameCategory, reorderLayout, reorderRoles,
   requirePerm, serverMemberIds, setMemberRoles, updateRole, updateServer, channelIdsOfServers,
 } from '../services/servers.ts';
 import { removeIconFile, saveIcon } from '../services/uploads.ts';
@@ -122,6 +122,23 @@ export async function serverRoutes(app: FastifyInstance) {
   app.delete('/api/servers/:id/bans/:userId', async (req) => {
     const ctx = loadServerCtx(idParam(req), req.userId);
     unbanMember(ctx, idParam(req, 'userId'));
+    return { ok: true };
+  });
+
+  // ── 활동 제한 (도배 등에 대한 타임아웃) ──
+  app.put('/api/servers/:id/members/:userId/restriction', async (req) => {
+    const ctx = loadServerCtx(idParam(req), req.userId);
+    const target = idParam(req, 'userId');
+    const restriction = restrictMember(ctx, target, restrictMemberSchema.parse(req.body));
+    if (restriction.voice) evictFromServer(ctx.server.id, target, '음성 채널 참여가 제한되었어요.');
+    pushServer(ctx.server.id);
+    return { restriction };
+  });
+
+  app.delete('/api/servers/:id/members/:userId/restriction', async (req) => {
+    const ctx = loadServerCtx(idParam(req), req.userId);
+    liftRestriction(ctx, idParam(req, 'userId'));
+    pushServer(ctx.server.id);
     return { ok: true };
   });
 

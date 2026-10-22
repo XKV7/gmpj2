@@ -84,7 +84,7 @@ export function VoiceControls({ onLeave, compact }: { onLeave: () => void; compa
 /** 서버 음성 채널 화면 */
 export function VoiceChannelView({ channelId }: { channelId: number }) {
   const room = `ch:${channelId}`;
-  const { conv, can } = useChatContext(channelId);
+  const { conv, can, restriction } = useChatContext(channelId);
   const participants = useData((s) => s.voice[room]) ?? [];
   const myRoom = useVoice((s) => s.room);
   const status = useVoice((s) => s.status);
@@ -123,7 +123,7 @@ export function VoiceChannelView({ channelId }: { channelId: number }) {
             {!mediaSupported() && <p className="warn-text"><Icon name="lock" size={14} /> 통화를 하려면 HTTPS 주소(또는 localhost)로 접속해야 해요.</p>}
             <div className="row center">
               <button className="btn btn-primary btn-lg" disabled={full || !can(Perm.CONNECT_VOICE)} onClick={() => void voiceEngine.join(room)}>
-                <Icon name="headphones" size={18} /> {full ? '자리가 가득 찼어요' : !can(Perm.CONNECT_VOICE) ? '참여 권한이 없어요' : '음성 채널 참여'}
+                <Icon name="headphones" size={18} /> {full ? '자리가 가득 찼어요' : restriction?.voice ? '참여가 제한됐어요' : !can(Perm.CONNECT_VOICE) ? '참여 권한이 없어요' : '음성 채널 참여'}
               </button>
               <button className="btn btn-soft btn-lg" disabled={full || !can(Perm.CONNECT_VOICE)} onClick={() => void voiceEngine.join(room, { video: true })}>
                 <Icon name="video" size={18} /> 영상으로 참여

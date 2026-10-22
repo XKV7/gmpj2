@@ -8,7 +8,7 @@ import { db } from '../db/index.ts';
 import { badRequest, forbidden, notFound } from '../lib/errors.ts';
 import { convMemberIds, getAccess, getConvRow, type Access, type ConvRow } from './conversations.ts';
 import { isBlockedEither } from './relationships.ts';
-import { serverMemberIds } from './servers.ts';
+import { assertNotRestricted, serverMemberIds } from './servers.ts';
 import { getPublicUsers, getUserRow } from './users.ts';
 import { inList, now } from './util.ts';
 import { removeBackupFile } from '../persist/index.ts';
@@ -197,6 +197,7 @@ function assertCanPost(userId: number, access: Access) {
     const other = convMemberIds(conv.id).find((u) => u !== userId);
     if (other && isBlockedEither(userId, other)) throw forbidden('이 사용자에게 메시지를 보낼 수 없어요.');
   }
+  assertNotRestricted(access.server, 'text');
   if (access.server && !hasPerm(access.server.perms, Perm.SEND_MESSAGES)) throw forbidden('이 채널에 메시지를 보낼 권한이 없어요.');
 }
 
@@ -263,6 +264,7 @@ export function editMessage(userId: number, messageId: number, content: string):
   if (row.author_id !== userId) throw forbidden('내 메시지만 수정할 수 있어요.');
   if (row.deleted_at) throw badRequest('삭제된 메시지는 수정할 수 없어요.');
   if (row.type !== 'text') throw badRequest('이 메시지는 수정할 수 없어요.');
+  assertNotRestricted(access.server, 'text');
   const clean = content.replace(/\r\n?/g, '\n').trim();
   const mentions = resolveMentions(access, clean);
   const t = now();
@@ -308,6 +310,8 @@ export function toggleReaction(userId: number, messageId: number, emoji: string)
   if (row.type !== 'text') throw badRequest('이 메시지에는 반응할 수 없어요.');
   if (!EMOJI_RE.test(emoji) || /\s|</.test(emoji)) throw badRequest('이모지만 반응으로 쓸 수 있어요.');
   const exists = db().prepare('SELECT 1 FROM reactions WHERE message_id = ? AND user_id = ? AND emoji = ?').get(messageId, userId, emoji);
+  // 제한 중에도 내가 남긴 반응을 지우는 건 허용
+  if (!exists) assertNotRestricted(access.server, 'text');
   const t = now();
   db().transaction(() => {
     if (exists) {
@@ -439,6 +443,7 @@ export function getOrCreateThread(userId: number, messageId: number): { thread: 
   if (row.thread_id) {
     return { thread: getConvRow(row.thread_id)!, created: false, parentMessage: hydrateMessages([row])[0]! };
   }
+  assertNotRestricted(access.server, 'text');
   if (access.server && !hasPerm(access.server.perms, Perm.SEND_MESSAGES)) throw forbidden('이 채널에 메시지를 보낼 권한이 없어요.');
   const t = now();
   const base = row.content.replace(/<@\d+>|<@everyone>/g, '').replace(/[*_~`>#]/g, '').trim().split('\n')[0] ?? '';

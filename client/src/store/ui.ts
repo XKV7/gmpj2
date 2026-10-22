@@ -22,6 +22,7 @@ export type ModalSpec =
   | { type: 'confirm'; title: string; message: string; confirmLabel: string; danger?: boolean; onConfirm: () => void | Promise<void> }
   | { type: 'cropImage'; file: File; title: string; onDone: (blob: Blob) => void | Promise<void> }
   | { type: 'addFriend' }
+  | { type: 'restrictMember'; serverId: number; userId: number }
   | { type: 'prompt'; title: string; label: string; initial: string; confirmLabel: string; maxLength?: number; onSubmit: (value: string) => void | Promise<void> };
 
 export type SettingsTab = 'profile' | 'appearance' | 'notifications' | 'voice' | 'account';

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  canActOnMember, canManageRole, computePermissions, hasPerm, highestRolePosition, Perm, PERMISSION_LABELS, ROLE_COLORS,
-  type Invite, type InvitePreview, type PermKey, type PublicUser, type Role, type ServerBan,
+  canActOnMember, canManageRole, computePermissions, hasPerm, highestRolePosition, isRestrictionActive, Perm, PERMISSION_LABELS, RESTRICT_DURATIONS,
+  restrictionUntilText, ROLE_COLORS,
+  type Invite, type InvitePreview, type MemberRestriction, type PermKey, type PublicUser, type Role, type ServerBan,
 } from '@moyeo/shared';
 import { api, errorMessage, uploadFile } from '../lib/api';
 import { formatRelativeFuture, formatShort } from '../lib/format';
@@ -12,6 +13,7 @@ import { Avatar } from '../components/Avatar';
 import { Icon } from '../components/Icon';
 import { Modal } from '../components/Modal';
 import { pickAndCrop } from './CommonModals';
+import { useRestriction } from '../hooks/useRestriction';
 
 function useServerPerms(serverId: number) {
   const server = useData((s) => s.servers[serverId]);
@@ -600,6 +602,11 @@ function MembersTab({ serverId }: { serverId: number }) {
                   })}
                 </div>
               </div>
+              {can(Perm.MODERATE_MEMBERS) && canAct && (
+                <button className={`btn btn-xs ${isRestrictionActive(m.restriction) ? 'btn-soft' : 'btn-ghost'}`} onClick={() => ui.openModal({ type: 'restrictMember', serverId, userId: m.userId })}>
+                  <Icon name="clock" size={13} /> {isRestrictionActive(m.restriction) ? '제한 중' : '활동 제한'}
+                </button>
+              )}
               {can(Perm.KICK_MEMBERS) && canAct && (
                 <button
                   className="btn btn-danger-soft btn-xs"
@@ -747,5 +754,101 @@ function BansTab({ serverId }: { serverId: number }) {
         </div>
       )}
     </div>
+  );
+}
+
+/** 제한 내용 요약: "채팅·음성 · 오후 3:20까지" */
+export function restrictionSummary(r: MemberRestriction): string {
+  const what = [r.text && '채팅', r.voice && '음성'].filter(Boolean).join('·');
+  return `${what} 제한 · ${restrictionUntilText(r)}`;
+}
+
+/** 멤버 활동 제한 (도배 등에 대한 타임아웃) */
+export function RestrictMemberModal({ serverId, userId }: { serverId: number; userId: number }) {
+  const server = useData((s) => s.servers[serverId]);
+  const user = useData((s) => s.users[userId]);
+  const current = useRestriction(server, userId);
+  const [text, setText] = useState(current?.text ?? true);
+  const [voice, setVoice] = useState(current?.voice ?? true);
+  const [durationSec, setDurationSec] = useState<number | null>(10 * 60);
+  const [reason, setReason] = useState(current?.reason ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!server || !user) return null;
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api.put(`/api/servers/${serverId}/members/${userId}/restriction`, { text, voice, durationSec, reason });
+      const label = RESTRICT_DURATIONS.find((d) => d.sec === durationSec)?.label ?? '';
+      ui.toast(durationSec === null ? `${user.nickname}님의 활동을 제한했어요.` : `${user.nickname}님의 활동을 ${label} 동안 제한했어요.`, 'success');
+      ui.closeModal();
+    } catch (err) {
+      setError(errorMessage(err));
+      setBusy(false);
+    }
+  };
+  const lift = async () => {
+    setBusy(true);
+    try {
+      await api.del(`/api/servers/${serverId}/members/${userId}/restriction`);
+      ui.toast(`${user.nickname}님의 활동 제한을 해제했어요.`, 'success');
+      ui.closeModal();
+    } catch (err) {
+      setError(errorMessage(err));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal title={`${user.nickname}님 활동 제한`} subtitle="도배·분란 등을 막기 위해 정해진 시간 동안 활동을 막아요. 메시지 읽기는 그대로 할 수 있어요." size="sm">
+      <form className="form restrict-form" onSubmit={submit}>
+        {current && (
+          <div className="notice restrict-current">
+            <Icon name="clock" size={18} />
+            <span className="grow">
+              <strong>지금 {restrictionSummary(current)}</strong>
+              {current.reason && <small>사유: {current.reason}</small>}
+            </span>
+            <button type="button" className="btn btn-soft btn-xs" disabled={busy} onClick={() => void lift()}>제한 해제</button>
+          </div>
+        )}
+        <div className="choice-list">
+          <label className={`choice ${text ? 'active' : ''}`}>
+            <input type="checkbox" checked={text} onChange={(e) => setText(e.target.checked)} />
+            <Icon name="message" size={22} />
+            <span className="grow"><strong>채팅 막기</strong><small>메시지 보내기·수정, 답장, 반응, 스레드 만들기</small></span>
+            <Icon name={text ? 'check' : 'plus'} size={16} />
+          </label>
+          <label className={`choice ${voice ? 'active' : ''}`}>
+            <input type="checkbox" checked={voice} onChange={(e) => setVoice(e.target.checked)} />
+            <Icon name="headphones" size={22} />
+            <span className="grow"><strong>음성 채널 막기</strong><small>음성 채널에 있다면 바로 내보내요</small></span>
+            <Icon name={voice ? 'check' : 'plus'} size={16} />
+          </label>
+        </div>
+        <div className="field">
+          <span>기간</span>
+          <div className="duration-chips" role="radiogroup" aria-label="제한 기간">
+            {RESTRICT_DURATIONS.map((d) => (
+              <button key={d.label} type="button" role="radio" aria-checked={durationSec === d.sec} className={durationSec === d.sec ? 'active' : ''} onClick={() => setDurationSec(d.sec)}>
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <label className="field">
+          <span>사유 (본인에게 보여요, 선택)</span>
+          <input className="input" value={reason} maxLength={200} onChange={(e) => setReason(e.target.value)} placeholder="예: 같은 메시지 도배" />
+        </label>
+        {error && <p className="form-error">{error}</p>}
+        <div className="modal-footer inline">
+          <button type="button" className="btn btn-ghost" onClick={ui.closeModal}>취소</button>
+          <button className="btn btn-danger" disabled={busy || (!text && !voice)}>{current ? '제한 바꾸기' : '제한하기'}</button>
+        </div>
+      </form>
+    </Modal>
   );
 }

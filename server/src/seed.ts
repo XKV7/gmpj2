@@ -104,7 +104,7 @@ export async function seedDemo(): Promise<{ inviteCodes: string[] }> {
   const ctx = () => loadServerCtx(s1, minji!);
   const inv1 = createInvite(ctx(), null, null);
   for (const u of [junho!, seoyeon!, dohyun!, haeun!]) { tick(5); joinByInvite(inv1.code, u); }
-  const staff = createRole(ctx(), { name: '운영진', color: '#E5484D', permissions: Perm.MANAGE_CHANNELS | Perm.MANAGE_MESSAGES | Perm.KICK_MEMBERS | Perm.MANAGE_ROLES | Perm.CREATE_INVITE | Perm.MENTION_EVERYONE });
+  const staff = createRole(ctx(), { name: '운영진', color: '#E5484D', permissions: Perm.MANAGE_CHANNELS | Perm.MANAGE_MESSAGES | Perm.KICK_MEMBERS | Perm.MODERATE_MEMBERS | Perm.MANAGE_ROLES | Perm.CREATE_INVITE | Perm.MENTION_EVERYONE });
   const designer = createRole(ctx(), { name: '디자이너', color: '#6E56CF', permissions: 0 });
   const backend = createRole(ctx(), { name: '백엔드', color: '#12A594', permissions: 0 });
   setMemberRoles(ctx(), dohyun!, [staff, backend]);

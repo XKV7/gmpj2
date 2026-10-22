@@ -4,7 +4,7 @@ import { badRequest, forbidden, notFound } from '../lib/errors.ts';
 import { convMemberIds, getAccess, getConvRow } from '../services/conversations.ts';
 import { insertSystemMessage } from '../services/messages.ts';
 import { isBlockedEither } from '../services/relationships.ts';
-import { serverIdsOf } from '../services/servers.ts';
+import { assertNotRestricted, serverIdsOf } from '../services/servers.ts';
 import { db } from '../db/index.ts';
 import { getUserRow } from '../services/users.ts';
 import { inList } from '../services/util.ts';
@@ -67,6 +67,7 @@ export function joinVoice(socket: Socket, userId: number, input: { room: string;
   const access = getAccess(userId, id);
   if (type === 'ch') {
     if (access.conv.kind !== 'voice') throw badRequest('음성 채널이 아니에요.');
+    assertNotRestricted(access.server, 'voice');
     if (!access.server || !hasPerm(access.server.perms, Perm.CONNECT_VOICE)) throw forbidden('이 음성 채널에 들어갈 권한이 없어요.');
   } else {
     if (access.conv.kind !== 'dm') throw badRequest('1:1 대화에서만 통화할 수 있어요.');

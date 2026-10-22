@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { canActOnMember, computePermissions, hasPerm, Perm, type Message, type PublicUser, type Server } from '@moyeo/shared';
+import { canActOnMember, computePermissions, hasPerm, isRestrictionActive, Perm, type Message, type PublicUser, type Server } from '@moyeo/shared';
 import { api, uploadFile } from '../lib/api';
 import { formatShort } from '../lib/format';
 import { toPlainText } from '../lib/markdown';
@@ -8,13 +8,14 @@ import { data, useData } from '../store/data';
 import { byPresenceThenName, displayName, nameOf, PRESENCE_LABEL, roleColorOf } from '../store/selectors';
 import { ui, useUI } from '../store/ui';
 import { useChatContext } from '../hooks/useChatContext';
+import { useRestriction } from '../hooks/useRestriction';
 import { Avatar, UserAvatar } from './Avatar';
 import { Composer } from './Composer';
 import { ConversationIcon } from './ConversationIcon';
 import { EmptyState } from './EmptyState';
 import { Icon } from './Icon';
 import { Markdown } from './Markdown';
-import { KICK_MESSAGE } from '../modals/ServerModals';
+import { KICK_MESSAGE, restrictionSummary } from '../modals/ServerModals';
 import { useMenu } from './Menu';
 import { MessageList } from './MessageList';
 import { ListSkeleton } from './Skeleton';
@@ -37,6 +38,7 @@ function PanelHeader({ title, icon, sub }: { title: string; icon: Parameters<typ
 
 export function MemberRow({ user, server, onMenu }: { user: PublicUser; server?: Server; onMenu?: (e: React.MouseEvent, u: PublicUser) => void }) {
   const color = roleColorOf(server, user.id);
+  const restriction = useRestriction(server, user.id);
   const speaking = false;
   return (
     <button
@@ -53,6 +55,7 @@ export function MemberRow({ user, server, onMenu }: { user: PublicUser; server?:
         <span className="member-name" style={color ? { color } : undefined}>
           <span className="ellipsis">{user.nickname}</span>
           {server?.ownerId === user.id && <Icon name="crown" size={13} className="owner-crown" title="서버 소유자" />}
+          {restriction && <Icon name="clock" size={13} className="restricted-badge" title={restrictionSummary(restriction)} />}
         </span>
         {user.statusMessage && user.presence !== 'offline' && <small className="ellipsis">{user.statusMessage}</small>}
       </span>
@@ -103,6 +106,13 @@ export function MembersPanel({ serverId }: { serverId: number }) {
       ...(u.id !== meId ? [{ label: '메시지 보내기', icon: 'message' as const, onClick: () => void openDm(u.id).catch(ui.error) }] : []),
       ...(hasPerm(perms, Perm.MANAGE_ROLES) && (canAct || u.id === meId)
         ? [{ label: '역할 관리', icon: 'shield' as const, onClick: () => ui.openModal({ type: 'serverSettings', serverId, tab: 'members' }) }]
+        : []),
+      ...(hasPerm(perms, Perm.MODERATE_MEMBERS) && canAct
+        ? [{
+            label: isRestrictionActive(server.members.find((m) => m.userId === u.id)?.restriction) ? '활동 제한 바꾸기·해제' : '활동 제한',
+            icon: 'clock' as const,
+            onClick: () => ui.openModal({ type: 'restrictMember', serverId, userId: u.id }),
+          }]
         : []),
       ...(hasPerm(perms, Perm.KICK_MEMBERS) && canAct
         ? [{

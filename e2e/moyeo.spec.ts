@@ -466,3 +466,37 @@ test('추방하면 차단 목록에 올라가 초대 링크로 다시 못 들어
   await C.page.getByRole('button', { name: '참가하기', exact: true }).click();
   await expect(C.page.locator('.main-pane .chat-header')).toContainText('일반');
 });
+
+test('활동 제한: 제한된 멤버는 채팅을 못 하고, 해제하면 바로 다시 쓸 수 있다', async () => {
+  // (이전 테스트에서 C가 다시 참가해 #일반을 보고 있음)
+  while (await A.page.locator('.modal-backdrop').count()) await A.page.locator('.modal').last().getByRole('button', { name: '닫기' }).click();
+  await A.page.getByLabel(serverName).click();
+  await A.page.locator('.server-header').click();
+  await A.page.getByRole('menuitem', { name: '서버 설정' }).click();
+  await A.page.locator('.settings-nav').getByRole('button', { name: '멤버' }).click();
+  await A.page.locator('.member-admin', { hasText: C.nickname }).getByRole('button', { name: '활동 제한' }).click();
+  const modal = A.page.locator('.modal').last();
+  await modal.getByRole('radio', { name: '1시간' }).click();
+  await modal.getByPlaceholder('예: 같은 메시지 도배').fill('같은 말 도배');
+  await shot(A.page, 'desktop-light-restrict');
+  await modal.getByRole('button', { name: '제한하기' }).click();
+  await expect(A.page.locator('.member-admin', { hasText: C.nickname }).getByRole('button', { name: '제한 중' })).toBeVisible();
+
+  // C: 입력창이 잠기고 이유가 보인다
+  const locked = C.page.locator('.main-pane .composer.disabled');
+  await expect(locked).toContainText('활동이 제한되어');
+  await expect(locked).toContainText('같은 말 도배');
+  await expect(C.page.locator('.main-pane textarea')).toHaveCount(0);
+  await shot(C.page, 'mobile-light-restricted');
+
+  // A: 해제
+  await A.page.locator('.member-admin', { hasText: C.nickname }).getByRole('button', { name: '제한 중' }).click();
+  await A.page.locator('.modal').last().getByRole('button', { name: '제한 해제' }).click();
+  await expect(A.page.locator('.member-admin', { hasText: C.nickname }).getByRole('button', { name: '활동 제한' })).toBeVisible();
+  await A.page.locator('.modal').last().getByRole('button', { name: '닫기' }).click();
+
+  // C: 다시 보낼 수 있다
+  await expect(locked).toHaveCount(0);
+  await send(C.page, '이제 조용히 할게요');
+  await expect(A.page.locator('.main-pane .msg', { hasText: '이제 조용히 할게요' })).toBeVisible();
+});

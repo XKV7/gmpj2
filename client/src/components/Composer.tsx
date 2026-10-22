@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { create } from 'zustand';
-import { ALLOWED_UPLOAD_TYPES, LIMITS, Perm, type PublicUser } from '@moyeo/shared';
+import { ALLOWED_UPLOAD_TYPES, LIMITS, Perm, restrictionUntilText, type PublicUser } from '@moyeo/shared';
 import { formatBytes } from '../lib/format';
 import { encodeMentions } from '../lib/mentions';
 import { toPlainText } from '../lib/markdown';
@@ -68,7 +68,7 @@ function FileChip({ file, onRemove }: { file: File; onRemove: () => void }) {
 interface Suggest { query: string; start: number; items: (PublicUser | 'everyone')[]; index: number }
 
 export function Composer({ convId, placeholder }: { convId: number; placeholder?: string }) {
-  const { conv, server, meId, can } = useChatContext(convId);
+  const { conv, server, meId, can, restriction } = useChatContext(convId);
   const users = useData((s) => s.users);
   const relationships = useData((s) => s.relationships);
   const text = useUI((s) => s.drafts[convId] ?? '');
@@ -97,6 +97,9 @@ export function Composer({ convId, placeholder }: { convId: number; placeholder?
     if (other && relationships[other]?.type === 'blocked') disabledReason = '차단한 사용자예요. 차단을 해제하면 다시 대화할 수 있어요.';
   }
   if (server && !can(Perm.SEND_MESSAGES)) disabledReason = '이 채널에 메시지를 보낼 권한이 없어요.';
+  if (restriction?.text) {
+    disabledReason = `활동이 제한되어 ${restrictionUntilText(restriction)} 메시지를 보낼 수 없어요.${restriction.reason ? ` 사유: ${restriction.reason}` : ''}`;
+  }
 
   useEffect(() => {
     const el = ref.current;
