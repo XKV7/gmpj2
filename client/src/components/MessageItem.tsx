@@ -20,6 +20,8 @@ export interface MessageCtx {
   canManageMessages: boolean;
   /** 활동 제한 중: 답장·반응·수정·스레드 만들기를 숨긴다 */
   restricted: boolean;
+  /** 이 대화에 새 글을 쓸 수 있는지 (제한·서버 주인 전용 채널이면 false) — 답장·스레드 만들기 */
+  canPost: boolean;
   inThread: boolean;
   mentionCandidates: () => import('@moyeo/shared').PublicUser[];
 }
@@ -218,13 +220,13 @@ export const MessageItem = memo(function MessageItem({ m, grouped, ctx, editing 
 
   const canWrite = !ctx.restricted;
   const items: MenuItem[] = [
+    ...(ctx.canPost ? [{ label: '답장', icon: 'reply' as const, onClick: () => ui.setReply(m.conversationId, m.id) }] : []),
     ...(canWrite
       ? [
-          { label: '답장', icon: 'reply' as const, onClick: () => ui.setReply(m.conversationId, m.id) },
           { label: '반응 추가', icon: 'smilePlus' as const, onClick: () => setTimeout(() => setPicker(document.querySelector<HTMLElement>(`[data-mid="${m.id}"] .msg-actions`) ?? document.body)) },
         ]
       : []),
-    ...(canThread && (canWrite || m.thread) ? [{ label: m.thread ? '스레드 보기' : '스레드 만들기', icon: 'thread' as const, onClick: () => (m.thread ? ui.openThread(m.thread.id) : openThreadFor(m.id).catch(ui.error)) }] : []),
+    ...(canThread && (ctx.canPost || m.thread) ? [{ label: m.thread ? '스레드 보기' : '스레드 만들기', icon: 'thread' as const, onClick: () => (m.thread ? ui.openThread(m.thread.id) : openThreadFor(m.id).catch(ui.error)) }] : []),
     ...(mine && canWrite ? [{ label: '수정', icon: 'edit' as const, onClick: () => ui.setEditing(m.id) }] : []),
     { label: '텍스트 복사', icon: 'copy', onClick: () => void navigator.clipboard?.writeText(toPlainText(m.content, nameOf)).then(() => ui.toast('복사했어요.', 'success')) },
     ...(!ctx.inThread && (!ctx.server || ctx.canManageMessages)
@@ -327,10 +329,10 @@ export const MessageItem = memo(function MessageItem({ m, grouped, ctx, editing 
                 <button key={e} className="quick-react" onClick={() => toggleReaction(m.id, e).catch(ui.error)} title={`${e} 반응`}>{e}</button>
               ))}
               <button onClick={(e) => setPicker(e.currentTarget)} data-tip="반응 추가"><Icon name="smilePlus" size={18} /></button>
-              <button onClick={() => ui.setReply(m.conversationId, m.id)} data-tip="답장"><Icon name="reply" size={18} /></button>
             </>
           )}
-          {canThread && (canWrite || m.thread) && <button onClick={() => (m.thread ? ui.openThread(m.thread.id) : openThreadFor(m.id).catch(ui.error))} data-tip="스레드"><Icon name="thread" size={18} /></button>}
+          {ctx.canPost && <button onClick={() => ui.setReply(m.conversationId, m.id)} data-tip="답장"><Icon name="reply" size={18} /></button>}
+          {canThread && (ctx.canPost || m.thread) && <button onClick={() => (m.thread ? ui.openThread(m.thread.id) : openThreadFor(m.id).catch(ui.error))} data-tip="스레드"><Icon name="thread" size={18} /></button>}
           {mine && canWrite && <button onClick={() => ui.setEditing(m.id)} data-tip="수정"><Icon name="edit" size={18} /></button>}
           <button onClick={(e) => menu.open(e.currentTarget, items)} data-tip="더 보기" aria-label="더 보기"><Icon name="more" size={18} /></button>
         </div>

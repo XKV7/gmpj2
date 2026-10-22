@@ -500,3 +500,28 @@ test('활동 제한: 제한된 멤버는 채팅을 못 하고, 해제하면 바�
   await send(C.page, '이제 조용히 할게요');
   await expect(A.page.locator('.main-pane .msg', { hasText: '이제 조용히 할게요' })).toBeVisible();
 });
+
+test('서버 주인 전용 채널: 주인만 쓰고 다른 멤버는 읽기만', async () => {
+  const row = A.page.locator('.channel-row', { hasText: '일반' });
+  await row.hover();
+  await row.getByRole('button', { name: '채널 설정' }).click();
+  await A.page.getByRole('checkbox', { name: '서버 주인만 메시지 보내기' }).check();
+  await shot(A.page, 'desktop-light-owner-only-setting');
+  await A.page.locator('.modal').last().getByRole('button', { name: '저장' }).click();
+  await expect(row.locator('.channel-owner-only')).toBeVisible();
+
+  // 다른 멤버(C): 입력창이 잠긴다
+  const locked = C.page.locator('.main-pane .composer.disabled');
+  await expect(locked).toContainText('서버 주인만 메시지를 보낼 수 있어요');
+  await shot(C.page, 'mobile-light-owner-only');
+  // 주인(A)은 그대로 보낼 수 있다
+  await send(A.page, '📢 공지: 내일 모임은 8시예요');
+  await expect(C.page.locator('.main-pane .msg', { hasText: '내일 모임은 8시' })).toBeVisible();
+
+  // 끄면 다시 모두 쓸 수 있다
+  await row.hover();
+  await row.getByRole('button', { name: '채널 설정' }).click();
+  await A.page.getByRole('checkbox', { name: '서버 주인만 메시지 보내기' }).uncheck();
+  await A.page.locator('.modal').last().getByRole('button', { name: '저장' }).click();
+  await expect(locked).toHaveCount(0);
+});

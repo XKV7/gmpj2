@@ -59,6 +59,8 @@ export const createGroupSchema = z.object({
 export const updateConversationSchema = z.object({
   name: trimmed(LIMITS.NAME_MAX).optional(),
   topic: trimmed(LIMITS.TOPIC_MAX).optional(),
+  /** 서버 텍스트 채널: 서버 주인만 메시지를 보낼 수 있게 (공지 채널) */
+  ownerOnly: z.boolean().optional(),
 });
 
 export const conversationPrefsSchema = z.object({

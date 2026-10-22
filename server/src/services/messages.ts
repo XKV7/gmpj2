@@ -6,7 +6,7 @@ import {
 import { config } from '../config.ts';
 import { db } from '../db/index.ts';
 import { badRequest, forbidden, notFound } from '../lib/errors.ts';
-import { convMemberIds, getAccess, getConvRow, type Access, type ConvRow } from './conversations.ts';
+import { assertOwnerOnlyChannel, convMemberIds, getAccess, getConvRow, type Access, type ConvRow } from './conversations.ts';
 import { isBlockedEither } from './relationships.ts';
 import { assertNotRestricted, serverMemberIds } from './servers.ts';
 import { getPublicUsers, getUserRow } from './users.ts';
@@ -198,6 +198,7 @@ function assertCanPost(userId: number, access: Access) {
     if (other && isBlockedEither(userId, other)) throw forbidden('이 사용자에게 메시지를 보낼 수 없어요.');
   }
   assertNotRestricted(access.server, 'text');
+  assertOwnerOnlyChannel(userId, access);
   if (access.server && !hasPerm(access.server.perms, Perm.SEND_MESSAGES)) throw forbidden('이 채널에 메시지를 보낼 권한이 없어요.');
 }
 
@@ -444,6 +445,7 @@ export function getOrCreateThread(userId: number, messageId: number): { thread: 
     return { thread: getConvRow(row.thread_id)!, created: false, parentMessage: hydrateMessages([row])[0]! };
   }
   assertNotRestricted(access.server, 'text');
+  assertOwnerOnlyChannel(userId, access);
   if (access.server && !hasPerm(access.server.perms, Perm.SEND_MESSAGES)) throw forbidden('이 채널에 메시지를 보낼 권한이 없어요.');
   const t = now();
   const base = row.content.replace(/<@\d+>|<@everyone>/g, '').replace(/[*_~`>#]/g, '').trim().split('\n')[0] ?? '';

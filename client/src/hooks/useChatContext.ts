@@ -13,8 +13,12 @@ export function useChatContext(convId: number) {
   // 활동 제한(타임아웃)이 걸려 있으면 그만큼 권한을 뺀다
   const restriction = useRestriction(server, meId);
   const perms = server ? applyRestriction(computePermissions({ ownerId: server.ownerId, roles: server.roles }, meId, myRoles), restriction) : 0;
+  // 서버 주인 전용 채널(스레드면 부모 채널 기준)에 내가 쓸 수 있는지
+  const channel = conv?.kind === 'thread' ? parent : conv;
+  const ownerOnlyBlocked = !!(server && channel?.ownerOnly && server.ownerId !== meId);
   return {
     conv,
+    ownerOnlyBlocked,
     parent,
     server,
     meId,

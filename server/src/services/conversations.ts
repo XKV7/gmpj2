@@ -19,6 +19,7 @@ export interface ConvRow {
   position: number;
   parent_id: number | null;
   parent_message_id: number | null;
+  owner_only: number;
   dm_key: string | null;
   last_message_id: number;
   last_activity_at: number;
@@ -46,6 +47,13 @@ export function convMemberIds(convId: number): number[] {
 }
 
 /** 이 대화에 접근할 수 있는지 확인하고 권한 문맥을 돌려준다. 모든 대화 API의 입구. */
+/** 서버 주인 전용 채널(또는 그 스레드)에 서버 주인이 아닌 사람이 쓰려고 하면 막는다 */
+export function assertOwnerOnlyChannel(userId: number, access: Access) {
+  if (access.server && access.channel.owner_only && access.server.server.owner_id !== userId) {
+    throw forbidden('이 채널은 서버 주인만 메시지를 보낼 수 있어요.');
+  }
+}
+
 export function getAccess(userId: number, convId: number): Access {
   const conv = getConvRow(convId);
   if (!conv) throw notFound('대화방을 찾을 수 없어요.');
@@ -114,6 +122,7 @@ export function serializeConversation(row: ConvRow, forUserId: number | null): C
     position: row.position,
     parentId: row.parent_id,
     parentMessageId: row.parent_message_id,
+    ownerOnly: !!row.owner_only,
     createdAt: row.created_at,
     members: isChat ? getMembers(row.id) : [],
     invitedIds: row.kind === 'group' ? invitedIdsOf(row.id) : [],
@@ -310,11 +319,19 @@ export function leaveGroup(convId: number, userId: number) {
 }
 
 /** 이름/주제 변경. 그룹은 멤버 누구나, 채널은 채널 관리 권한 필요 */
-export function updateConversation(userId: number, convId: number, patch: { name?: string; topic?: string; icon?: string | null }) {
+export function updateConversation(
+  userId: number,
+  convId: number,
+  patch: { name?: string; topic?: string; icon?: string | null; ownerOnly?: boolean },
+) {
   const access = getAccess(userId, convId);
   const { conv } = access;
   if (conv.kind === 'dm' || conv.kind === 'thread') throw badRequest('이 대화방은 바꿀 수 없어요.');
   if (access.server) requirePerm(access.server, Perm.MANAGE_CHANNELS, '채널을 관리할 권한이 없어요.');
+  if (patch.ownerOnly !== undefined && patch.ownerOnly !== !!conv.owner_only) {
+    if (conv.kind !== 'text' || !access.server) throw badRequest('서버의 텍스트 채널에서만 쓸 수 있는 설정이에요.');
+    if (access.server.server.owner_id !== userId) throw forbidden('서버 주인만 이 설정을 바꿀 수 있어요.');
+  }
   const actor = getUserRow(userId)!;
   db().transaction(() => {
     if (patch.name !== undefined) {
@@ -326,6 +343,7 @@ export function updateConversation(userId: number, convId: number, patch: { name
       }
     }
     if (patch.topic !== undefined) db().prepare('UPDATE conversations SET topic = ? WHERE id = ?').run(patch.topic, convId);
+    if (patch.ownerOnly !== undefined && conv.kind === 'text') db().prepare('UPDATE conversations SET owner_only = ? WHERE id = ?').run(patch.ownerOnly ? 1 : 0, convId);
     if (patch.icon !== undefined) {
       db().prepare('UPDATE conversations SET icon = ? WHERE id = ?').run(patch.icon, convId);
       if (conv.kind === 'group') insertSystemMessage(convId, userId, `${actor.nickname}님이 방 사진을 바꿨어요.`);

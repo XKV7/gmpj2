@@ -68,7 +68,7 @@ function FileChip({ file, onRemove }: { file: File; onRemove: () => void }) {
 interface Suggest { query: string; start: number; items: (PublicUser | 'everyone')[]; index: number }
 
 export function Composer({ convId, placeholder }: { convId: number; placeholder?: string }) {
-  const { conv, server, meId, can, restriction } = useChatContext(convId);
+  const { conv, server, meId, can, restriction, ownerOnlyBlocked } = useChatContext(convId);
   const users = useData((s) => s.users);
   const relationships = useData((s) => s.relationships);
   const text = useUI((s) => s.drafts[convId] ?? '');
@@ -97,6 +97,7 @@ export function Composer({ convId, placeholder }: { convId: number; placeholder?
     if (other && relationships[other]?.type === 'blocked') disabledReason = '차단한 사용자예요. 차단을 해제하면 다시 대화할 수 있어요.';
   }
   if (server && !can(Perm.SEND_MESSAGES)) disabledReason = '이 채널에 메시지를 보낼 권한이 없어요.';
+  if (ownerOnlyBlocked) disabledReason = '이 채널은 서버 주인만 메시지를 보낼 수 있어요. 읽기와 반응은 할 수 있어요.';
   if (restriction?.text) {
     disabledReason = `활동이 제한되어 ${restrictionUntilText(restriction)} 메시지를 보낼 수 없어요.${restriction.reason ? ` 사유: ${restriction.reason}` : ''}`;
   }

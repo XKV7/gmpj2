@@ -20,7 +20,7 @@ function shouldGroup(prev: Message | undefined, m: Message): boolean {
 }
 
 export function MessageList({ convId, header, inThread = false }: { convId: number; header?: ReactNode; inThread?: boolean }) {
-  const { conv, server, meId, canManageMessages, restriction } = useChatContext(convId);
+  const { conv, server, meId, canManageMessages, restriction, ownerOnlyBlocked } = useChatContext(convId);
   const restricted = !!restriction?.text;
   const log = useData((s) => s.chats[convId]) ?? emptyLog();
   const messages = log.messages.length ? log.messages : EMPTY;
@@ -55,8 +55,8 @@ export function MessageList({ convId, header, inThread = false }: { convId: numb
   }, [server, conv, users]);
 
   const ctx: MessageCtx | null = useMemo(
-    () => (conv ? { conv, server, meId, canManageMessages, restricted, inThread, mentionCandidates } : null),
-    [conv, server, meId, canManageMessages, restricted, inThread, mentionCandidates],
+    () => (conv ? { conv, server, meId, canManageMessages, restricted, canPost: !restricted && !ownerOnlyBlocked, inThread, mentionCandidates } : null),
+    [conv, server, meId, canManageMessages, restricted, ownerOnlyBlocked, inThread, mentionCandidates],
   );
 
   const checkBottom = useCallback(() => {

@@ -49,6 +49,8 @@ export interface Conversation {
   position: number;
   parentId: number | null;
   parentMessageId: number | null;
+  /** 서버 텍스트 채널: 서버 주인만 메시지를 보낼 수 있음 (다른 멤버는 읽기·반응만) */
+  ownerOnly: boolean;
   createdAt: number;
   /** DM/그룹에서만 채워진다 */
   members: ConversationMember[];

@@ -6,6 +6,7 @@ import {
   setMemberRoles,
 } from '../src/services/servers.ts';
 import { editMessage, getOrCreateThread, sendMessage, toggleReaction } from '../src/services/messages.ts';
+import { updateConversation } from '../src/services/conversations.ts';
 
 let seq = 0;
 const send = (userId: number, conversationId: number, content = '안녕') =>
@@ -96,5 +97,42 @@ describe('멤버 활동 제한 (도배 타임아웃)', () => {
     expect(() => restrictMember(modCtx(), u.mod!, textOnly)).toThrow(/자기 자신/);
     setMemberRoles(owner(), u.friend!, [role]);
     expect(() => restrictMember(modCtx(), u.friend!, textOnly)).toThrow(/높거나 같은/);
+  });
+});
+
+describe('서버 주인만 메시지를 보낼 수 있는 채널', () => {
+  let u: Record<string, number>;
+  let serverId: number;
+  let channelId: number;
+  const owner = () => loadServerCtx(serverId, u.owner!);
+
+  beforeEach(async () => {
+    freshDb();
+    u = await makeUsers('owner', 'admin', 'member');
+    serverId = createServer(u.owner!, '서버');
+    const inv = createInvite(owner(), null, null);
+    joinByInvite(inv.code, u.admin!);
+    joinByInvite(inv.code, u.member!);
+    const admin = createRole(owner(), { name: '관리자', color: null, permissions: Perm.ADMINISTRATOR });
+    setMemberRoles(owner(), u.admin!, [admin]);
+    channelId = getServerPayload(serverId, u.owner!).server.channels.find((c) => c.kind === 'text')!.id;
+  });
+
+  it('켜면 서버 주인만 보낼 수 있고, 다른 사람은 반응만 가능하다 (관리자도 불가)', () => {
+    updateConversation(u.owner!, channelId, { ownerOnly: true });
+    expect(getServerPayload(serverId, u.member!).server.channels.find((c) => c.id === channelId)?.ownerOnly).toBe(true);
+    const notice = send(u.owner!, channelId, '공지');
+    expect(() => send(u.member!, channelId)).toThrow(/서버 주인만/);
+    expect(() => send(u.admin!, channelId)).toThrow(/서버 주인만/);
+    expect(() => getOrCreateThread(u.member!, notice.id)).toThrow(/서버 주인만/);
+    expect(toggleReaction(u.member!, notice.id, '👍').message.reactions).toHaveLength(1);
+    updateConversation(u.owner!, channelId, { ownerOnly: false });
+    expect(send(u.member!, channelId).id).toBeGreaterThan(0);
+  });
+
+  it('서버 주인만 이 설정을 바꿀 수 있다', () => {
+    expect(() => updateConversation(u.admin!, channelId, { ownerOnly: true })).toThrow(/서버 주인만/);
+    // 이름만 바꾸는 건 관리자도 된다
+    updateConversation(u.admin!, channelId, { name: '공지' });
   });
 });

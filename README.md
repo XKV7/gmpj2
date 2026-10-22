@@ -111,6 +111,7 @@ npm start          # 하나의 포트(3001)에서 API + 화면을 함께 제공
 - 카테고리별 텍스트/음성 채널, **드래그 앤 드롭으로 채널·카테고리 순서 변경**, 카테고리 접기
 - 역할과 권한: 역할 만들기(이름, 색상), 10가지 권한, 역할 순서(위계), 멤버에게 역할 부여, **닉네임 색은 최상위 역할 색**
 - 멤버 목록 사이드바: 역할별 그룹 + 온라인/오프라인 구분, 우클릭으로 DM/역할 관리/추방
+- **서버 주인 전용 채널(공지 채널)**: 채널 설정의 `서버 주인만 메시지 보내기`를 켜면 그 채널(과 그 안의 스레드)에는 서버 주인만 글을 쓸 수 있고, 다른 멤버는 읽기와 반응만 가능. 관리자 역할도 예외 없음. 이 스위치는 서버 주인만 바꿀 수 있고, 채널 이름 옆에 자물쇠가 표시됨
 - **활동 제한(타임아웃)**: 도배 등을 한 멤버의 채팅(메시지·수정·답장·반응·스레드)과 음성 채널 참여를 1분~1주 또는 해제할 때까지 막음. 사유를 적으면 본인 입력창에 보이고, 시간이 지나면 저절로 풀림. 나갔다 다시 들어와도 유지되고 `관리자` 역할로도 우회할 수 없음. 멤버 목록 우클릭 또는 서버 설정 → 멤버에서 제한·해제
 - **차단 목록(블랙리스트)**: 추방하면 그 계정이 자동으로 서버 차단 목록에 올라가 예전 초대 링크든 새 링크든 다시 들어올 수 없음. 아직 멤버가 아닌 계정도 아이디로 미리 차단 가능, 서버 설정 → `차단 목록`에서 해제
 - 채널별 안 읽음 표시, 멘션 배지, 서버 아이콘에 안 읽음 점/멘션 수
@@ -282,7 +283,7 @@ docker run -p 3001:3001 -v moyeo-data:/data moyeo
 | `users` | id, username(유일), nickname, password_hash, avatar, status_message, banner_color, presence_pref | 계정과 프로필 |
 | `sessions` | token_hash(PK), user_id, expires_at | 로그인 세션 (30일) |
 | `relationships` | (user_id, other_id), type = friend / incoming / outgoing / blocked | 친구·요청·차단 (양방향 행) |
-| `conversations` | id, kind = dm / group / text / voice / thread, name, icon, topic, owner_id, server_id, category_id, position, parent_id, parent_message_id, dm_key(유일), last_message_id, last_activity_at | 모든 대화 공간을 하나로: DM, 그룹, 서버 채널, 스레드 |
+| `conversations` | id, kind = dm / group / text / voice / thread, name, icon, topic, owner_id, server_id, category_id, position, parent_id, parent_message_id, owner_only(서버 주인 전용), dm_key(유일), last_message_id, last_activity_at | 모든 대화 공간을 하나로: DM, 그룹, 서버 채널, 스레드 |
 | `group_invites` | (conversation_id, user_id), inviter_id | 그룹 초대장. 수락하면 `conversation_members`로 옮겨지고, 거절하면 지워짐 |
 | `member_restrictions` | (server_id, user_id), text, voice, until(NULL=해제할 때까지), reason, restricted_by | 활동 제한. 권한 계산 때 해당 권한 비트를 빼서 모든 검사에 반영 |
 | `server_bans` | (server_id, user_id), banned_by, created_at | 서버 차단 목록. 서버 참가는 이 표를 반드시 거침 |

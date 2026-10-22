@@ -222,4 +222,9 @@ CREATE TABLE member_restrictions (
 );
 `,
   },
+  {
+    version: 6,
+    name: 'owner-only (announcement) text channels',
+    sql: `ALTER TABLE conversations ADD COLUMN owner_only INTEGER NOT NULL DEFAULT 0;`,
+  },
 ];

@@ -279,13 +279,15 @@ export function EditChannelModal({ channelId }: { channelId: number }) {
   const ch = useData((s) => s.conversations[channelId]);
   const [name, setName] = useState(ch?.name ?? '');
   const [topic, setTopic] = useState(ch?.topic ?? '');
+  const [ownerOnly, setOwnerOnly] = useState(ch?.ownerOnly ?? false);
   const [busy, setBusy] = useState(false);
+  const isOwner = useData((s) => !!ch?.serverId && s.servers[ch.serverId]?.ownerId === s.me?.id);
   if (!ch) return null;
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      await api.patch(`/api/channels/${channelId}`, { name, topic });
+      await api.patch(`/api/channels/${channelId}`, { name, topic, ...(ch.kind === 'text' && isOwner ? { ownerOnly } : {}) });
       ui.toast('채널을 저장했어요.', 'success');
       ui.closeModal();
     } catch (err) {
@@ -298,6 +300,15 @@ export function EditChannelModal({ channelId }: { channelId: number }) {
       <form className="form" onSubmit={save}>
         <label className="field"><span>채널 이름</span><input className="input" value={name} maxLength={40} onChange={(e) => setName(e.target.value)} /></label>
         {ch.kind === 'text' && <label className="field"><span>채널 주제</span><textarea className="input" rows={3} value={topic} maxLength={200} onChange={(e) => setTopic(e.target.value)} placeholder="이 채널에서 어떤 이야기를 하나요?" /></label>}
+        {ch.kind === 'text' && (
+          <label className="perm-row">
+            <span className="grow">
+              <strong>서버 주인만 메시지 보내기</strong>
+              <small>{isOwner ? '공지 채널처럼 써요. 다른 멤버는 읽고 반응만 남길 수 있어요.' : '서버 주인만 이 설정을 바꿀 수 있어요.'}</small>
+            </span>
+            <input type="checkbox" className="switch" checked={ownerOnly} disabled={!isOwner} onChange={(e) => setOwnerOnly(e.target.checked)} aria-label="서버 주인만 메시지 보내기" />
+          </label>
+        )}
         <div className="modal-footer inline split">
           <button
             type="button"

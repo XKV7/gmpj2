@@ -127,8 +127,9 @@ export function attachSocketHandlers(io: IO) {
         const last = typingGate.get(conversationId) ?? 0;
         if (Date.now() - last < 2000) return;
         typingGate.set(conversationId, Date.now());
-        const { conv, server } = getAccess(userId, conversationId);
-        if (server?.restriction?.text) return;
+        const access = getAccess(userId, conversationId);
+        const { conv, server } = access;
+        if (server?.restriction?.text || (server && access.channel.owner_only && server.server.owner_id !== userId)) return;
         socket.to(roomOf(conv)).emit('typing', { conversationId, userId });
       } catch {
         // 잘못된 입력 중 표시 요청은 조용히 무시

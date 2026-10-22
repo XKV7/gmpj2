@@ -158,3 +158,4 @@
 .invite-card-top .grow { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
 .invite-card-top small { font-size: 12px; color: var(--text-3); }
 .invite-card-actions { display: flex; gap: 6px; justify-content: flex-end; margin-top: 10px; }
+.channel-owner-only { color: var(--text-3); flex-shrink: 0; }

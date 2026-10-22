@@ -481,6 +481,7 @@ export function ServerSidebar({ serverId }: { serverId: number }) {
         >
           <Icon name={isVoice ? 'volume' : 'hash'} size={18} className="channel-icon" />
           <span className="ellipsis grow">{ch.name}</span>
+          {ch.ownerOnly && <Icon name="lock" size={13} className="channel-owner-only" title="서버 주인만 메시지를 보낼 수 있어요" />}
           {!isVoice && c.mentions > 0 && <span className="badge">{c.mentions}</span>}
           {canManageChannels && (
             <button className="channel-gear" onClick={(e) => { e.stopPropagation(); ui.openModal({ type: 'editChannel', channelId: ch.id }); }} aria-label="채널 설정" data-tip="채널 설정">
