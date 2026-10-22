@@ -129,12 +129,15 @@ export function MessageList({ convId, header, inThread = false }: { convId: numb
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [messages, convId]);
 
-  // 특정 메시지로 이동 + 하이라이트
+  // 특정 메시지로 이동 + 하이라이트 — 요청 하나당 한 번만.
+  // (처리한 요청을 기억하지 않으면 새 메시지가 올 때마다 그 메시지로 다시 끌려 올라간다)
+  const handledJumpRef = useRef(0);
   useEffect(() => {
-    if (!jump || jump.conversationId !== convId) return;
+    if (!jump || jump.conversationId !== convId || handledJumpRef.current === jump.nonce) return;
     const t = setTimeout(() => {
       const el = scrollRef.current?.querySelector<HTMLElement>(`[data-mid="${jump.messageId}"]`);
       if (!el) return;
+      handledJumpRef.current = jump.nonce;
       stickRef.current = false;
       el.scrollIntoView({ block: 'center', behavior: 'smooth' });
       el.classList.remove('flash');

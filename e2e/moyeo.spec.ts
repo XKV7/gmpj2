@@ -133,6 +133,19 @@ test('답장 · 반응 · 수정 · 삭제', async () => {
   await reply.locator('.msg-reply').click();
   await expect(msg(A.page, '안녕 보브!').first()).toHaveClass(/flash/);
 
+  // 이동한 뒤 맨 아래로 내려오면, 새 메시지가 와도 원문 쪽으로 다시 끌려 올라가지 않는다
+  const list = A.page.locator('.main-pane .messages');
+  for (let i = 1; i <= 15; i++) await send(B.page, `채워 넣기 ${i}`);
+  await expect(msg(A.page, '채워 넣기 15')).toBeVisible();
+  await list.evaluate((el) => el.scrollTo({ top: el.scrollHeight }));
+  await A.page.waitForTimeout(300);
+  for (const t of ['새 메시지 하나', '새 메시지 둘']) {
+    await send(B.page, t);
+    await expect(msg(A.page, t)).toBeVisible();
+    await A.page.waitForTimeout(400);
+    expect(await list.evaluate((el) => el.scrollHeight - el.scrollTop - el.clientHeight)).toBeLessThan(60);
+  }
+
   // A가 B의 메시지에 👍 반응 → B에게 실시간 반영
   await reply.hover();
   await reply.locator('button[title="👍 반응"]').click();
