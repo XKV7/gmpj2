@@ -4,7 +4,7 @@ import { badRequest, forbidden, notFound } from '../lib/errors.ts';
 import { convMemberIds, getAccess, getConvRow } from '../services/conversations.ts';
 import { insertSystemMessage } from '../services/messages.ts';
 import { isBlockedEither } from '../services/relationships.ts';
-import { assertNotRestricted, serverIdsOf } from '../services/servers.ts';
+import { allHiddenChannelIds, assertNotRestricted, serverIdsOf } from '../services/servers.ts';
 import { db } from '../db/index.ts';
 import { getUserRow } from '../services/users.ts';
 import { inList } from '../services/util.ts';
@@ -28,8 +28,8 @@ function parseRoom(room: string): { type: 'ch' | 'dm'; id: number } {
 function audienceRoom(room: string): string | null {
   const { type, id } = parseRoom(room);
   if (type === 'dm') return `conv:${id}`;
-  const conv = getConvRow(id);
-  return conv?.server_id ? `server:${conv.server_id}` : null;
+  // 음성 채널 현황은 그 채널 룸에만 — 채널이 숨겨진 사람은 누가 있는지도 받지 않는다
+  return getConvRow(id)?.server_id ? `conv:${id}` : null;
 }
 
 export function participantsOf(room: string): VoiceParticipant[] {
@@ -45,6 +45,7 @@ function broadcast(room: string) {
 export function voiceSnapshot(userId: number): Record<string, VoiceParticipant[]> {
   const out: Record<string, VoiceParticipant[]> = {};
   const servers = new Set(serverIdsOf(userId));
+  const hidden = allHiddenChannelIds(userId);
   const dmIds = new Set(db().prepare(`SELECT conversation_id FROM conversation_members WHERE user_id = ?`).pluck().all(userId) as number[]);
   const chRooms = [...rooms.keys()].filter((r) => r.startsWith('ch:'));
   const chIds = chRooms.map((r) => parseRoom(r).id);
@@ -57,7 +58,7 @@ export function voiceSnapshot(userId: number): Record<string, VoiceParticipant[]
   for (const [room, map] of rooms) {
     if (!map.size) continue;
     const { type, id } = parseRoom(room);
-    if ((type === 'ch' && servers.has(chServer.get(id) ?? -1)) || (type === 'dm' && dmIds.has(id))) out[room] = participantsOf(room);
+    if ((type === 'ch' && servers.has(chServer.get(id) ?? -1) && !hidden.has(id)) || (type === 'dm' && dmIds.has(id))) out[room] = participantsOf(room);
   }
   return out;
 }

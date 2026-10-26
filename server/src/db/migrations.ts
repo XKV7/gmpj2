@@ -227,4 +227,9 @@ CREATE TABLE member_restrictions (
     name: 'owner-only (announcement) text channels',
     sql: `ALTER TABLE conversations ADD COLUMN owner_only INTEGER NOT NULL DEFAULT 0;`,
   },
+  {
+    version: 7,
+    name: 'hide specific channels from a restricted member',
+    sql: `ALTER TABLE member_restrictions ADD COLUMN hidden_channels TEXT NOT NULL DEFAULT '[]';`,
+  },
 ];

@@ -142,8 +142,9 @@ export const restrictMemberSchema = z
     voice: z.boolean(),
     durationSec: z.number().int().min(60).max(60 * 60 * 24 * 28).nullable(),
     reason: z.string().trim().max(200, '사유는 200자까지 쓸 수 있어요.').default(''),
+    hiddenChannelIds: z.array(id).max(200).default([]),
   })
-  .refine((v) => v.text || v.voice, { message: '제한할 활동을 하나 이상 골라 주세요.' });
+  .refine((v) => v.text || v.voice || v.hiddenChannelIds.length > 0, { message: '제한할 활동이나 숨길 채널을 하나 이상 골라 주세요.' });
 
 export const createInviteSchema = z.object({
   expiresInSec: z.number().int().positive().max(60 * 60 * 24 * 30).nullable(),

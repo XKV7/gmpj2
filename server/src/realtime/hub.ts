@@ -2,7 +2,7 @@ import type { Server as IOServer } from 'socket.io';
 import type { ClientToServerEvents, Message, ServerToClientEvents } from '@moyeo/shared';
 import { convMemberIds, getConvRow, invitedIdsOf, roomOf, serializeConversation, type ConvRow } from '../services/conversations.ts';
 import { getMessageRows, hydrateMessages, usersForMessages } from '../services/messages.ts';
-import { getServerPayload } from '../services/servers.ts';
+import { getServerPayload, hiddenChannelsByUser, withoutChannels } from '../services/servers.ts';
 import { audienceOf, getPublicUsers, getUserRow, toMe, toPublicUser } from '../services/users.ts';
 
 export type IO = IOServer<ClientToServerEvents, ServerToClientEvents, Record<string, never>, { userId: number }>;
@@ -69,7 +69,13 @@ export function pushConversation(convId: number, extraUserIds: number[] = []) {
 /** 서버 구조(채널, 역할, 멤버) 변경을 서버 룸 전체에 알린다 */
 export function pushServer(serverId: number) {
   const payload = getServerPayload(serverId, null);
-  emitToRoom(`server:${serverId}`, 'server:upsert', payload);
+  // 채널이 숨겨진 사람에게는 그 채널을 뺀 정보를 따로 보낸다
+  const hiddenBy = hiddenChannelsByUser(serverId);
+  if (!io) return;
+  let everyone = io.to(`server:${serverId}`);
+  for (const uid of hiddenBy.keys()) everyone = everyone.except(`user:${uid}`);
+  everyone.emit('server:upsert', payload);
+  for (const [uid, hidden] of hiddenBy) emitToUser(uid, 'server:upsert', withoutChannels(payload, hidden));
 }
 
 /** 접속 상태 변화를 관계있는 사람들(+본인)에게 알린다 */

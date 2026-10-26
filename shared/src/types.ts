@@ -145,6 +145,8 @@ export interface MemberRestriction {
   text: boolean;
   /** 음성 채널 참여 금지 */
   voice: boolean;
+  /** 이 사람에게 숨길 채널 (목록에서 사라지고 내용·음성 입장도 막힘) */
+  hiddenChannelIds: number[];
   /** 끝나는 시각(ms). null이면 직접 해제할 때까지 */
   until: number | null;
   reason: string;

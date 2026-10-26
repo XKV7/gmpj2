@@ -9,6 +9,7 @@ import { startHttpsGateway } from './gateway.ts';
 import { lanAddresses } from './lan.ts';
 import { logger } from './lib/logger.ts';
 import { setIo, type IO } from './realtime/hub.ts';
+import { restoreRestrictionTimers } from './realtime/restrictions.ts';
 import { attachSocketHandlers } from './realtime/socket.ts';
 import { purgeExpiredSessions } from './services/auth.ts';
 import { purgeOrphanUploads } from './services/uploads.ts';
@@ -34,6 +35,7 @@ async function main() {
     connectionStateRecovery: undefined,
   });
   setIo(io);
+  restoreRestrictionTimers();
   startBackupLoop(db);
   attachSocketHandlers(io);
 

@@ -7,8 +7,9 @@ import { z } from 'zod';
 import { badRequest, notFound } from '../lib/errors.ts';
 import { getPublicUsers, getUserByUsername } from '../services/users.ts';
 import { limits } from '../lib/rateLimit.ts';
-import { emitToRoom, emitToUser, getIo, joinUserToRoom, leaveUserFromRoom, pushPresence, pushServer } from '../realtime/hub.ts';
+import { emitToRoom, emitToUser, getIo, leaveUserFromRoom, pushPresence, pushServer } from '../realtime/hub.ts';
 import { evictFromRoom, evictFromServer } from '../realtime/voice.ts';
+import { scheduleRestrictionExpiry, syncServerRooms } from '../realtime/restrictions.ts';
 import { deleteChannel, getConvRow, updateConversation } from '../services/conversations.ts';
 import {
   assertCategory, createCategory, createInvite, createRole, createServer, deleteCategory, deleteInvite, deleteRole, deleteServer,
@@ -19,10 +20,9 @@ import {
 import { removeIconFile, saveIcon } from '../services/uploads.ts';
 import { idParam, readSingleFile, requireAuth } from './context.ts';
 
-/** 사용자의 소켓을 서버 룸과 모든 채널 룸에 넣는다 */
+/** 사용자의 소켓을 서버 룸과 (숨겨지지 않은) 채널 룸에 넣는다 */
 function joinServerRooms(userId: number, serverId: number) {
-  joinUserToRoom(userId, `server:${serverId}`);
-  for (const ch of channelIdsOfServers([serverId])) joinUserToRoom(userId, `conv:${ch}`);
+  syncServerRooms(userId, serverId);
 }
 
 function leaveServerRooms(userId: number, serverId: number) {
@@ -131,13 +131,18 @@ export async function serverRoutes(app: FastifyInstance) {
     const target = idParam(req, 'userId');
     const restriction = restrictMember(ctx, target, restrictMemberSchema.parse(req.body));
     if (restriction.voice) evictFromServer(ctx.server.id, target, '음성 채널 참여가 제한되었어요.');
+    syncServerRooms(target, ctx.server.id);
+    scheduleRestrictionExpiry(ctx.server.id, target, restriction.hiddenChannelIds.length ? restriction.until : null);
     pushServer(ctx.server.id);
     return { restriction };
   });
 
   app.delete('/api/servers/:id/members/:userId/restriction', async (req) => {
     const ctx = loadServerCtx(idParam(req), req.userId);
-    liftRestriction(ctx, idParam(req, 'userId'));
+    const target = idParam(req, 'userId');
+    liftRestriction(ctx, target);
+    scheduleRestrictionExpiry(ctx.server.id, target, null);
+    syncServerRooms(target, ctx.server.id);
     pushServer(ctx.server.id);
     return { ok: true };
   });

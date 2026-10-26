@@ -538,3 +538,31 @@ test('서버 주인 전용 채널: 주인만 쓰고 다른 멤버는 읽기만',
   await A.page.locator('.modal').last().getByRole('button', { name: '저장' }).click();
   await expect(locked).toHaveCount(0);
 });
+
+test('활동 제한: 특정 채널을 숨기면 그 사람에게서 사라지고, 해제하면 돌아온다', async () => {
+  const cLounge = C.page.locator('.channel-row', { hasText: '라운지' });
+  await expect(cLounge).toHaveCount(1);
+  await A.page.locator('.server-header').click();
+  await A.page.getByRole('menuitem', { name: '서버 설정' }).click();
+  await A.page.locator('.settings-nav').getByRole('button', { name: '멤버' }).click();
+  await A.page.locator('.member-admin', { hasText: C.nickname }).getByRole('button', { name: '활동 제한' }).click();
+  const modal = A.page.locator('.modal').last();
+  // 채팅·음성 금지는 끄고, 라운지만 숨긴다
+  await modal.getByText('채팅 막기').click();
+  await modal.getByText('음성 채널 막기').click();
+  await modal.getByRole('checkbox', { name: '라운지 숨기기' }).check();
+  await shot(A.page, 'desktop-light-hide-channel');
+  await modal.getByRole('button', { name: '제한하기' }).click();
+
+  // C: 라운지가 목록에서 사라진다 (새로고침 없이)
+  await expect(cLounge).toHaveCount(0);
+  // 다른 채널은 평소대로 쓸 수 있다
+  await send(C.page, '일반 채널은 그대로 돼요');
+  await expect(A.page.locator('.main-pane .msg', { hasText: '일반 채널은 그대로 돼요' })).toBeVisible();
+
+  // 해제하면 다시 보인다
+  await A.page.locator('.member-admin', { hasText: C.nickname }).getByRole('button', { name: '제한 중' }).click();
+  await A.page.locator('.modal').last().getByRole('button', { name: '제한 해제' }).click();
+  await A.page.locator('.modal').last().getByRole('button', { name: '닫기' }).click();
+  await expect(cLounge).toHaveCount(1);
+});

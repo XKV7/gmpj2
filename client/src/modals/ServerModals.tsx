@@ -770,7 +770,7 @@ function BansTab({ serverId }: { serverId: number }) {
 
 /** 제한 내용 요약: "채팅·음성 · 오후 3:20까지" */
 export function restrictionSummary(r: MemberRestriction): string {
-  const what = [r.text && '채팅', r.voice && '음성'].filter(Boolean).join('·');
+  const what = [r.text && '채팅', r.voice && '음성', r.hiddenChannelIds.length && `채널 ${r.hiddenChannelIds.length}개 숨김`].filter(Boolean).join('·');
   return `${what} 제한 · ${restrictionUntilText(r)}`;
 }
 
@@ -783,16 +783,22 @@ export function RestrictMemberModal({ serverId, userId }: { serverId: number; us
   const [voice, setVoice] = useState(current?.voice ?? true);
   const [durationSec, setDurationSec] = useState<number | null>(10 * 60);
   const [reason, setReason] = useState(current?.reason ?? '');
+  const [hidden, setHidden] = useState<number[]>(current?.hiddenChannelIds ?? []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (!server || !user) return null;
+  const channels = [...server.channels].sort((a, b) => a.position - b.position);
+  const toggleHidden = (id: number) => setHidden((h) => (h.includes(id) ? h.filter((x) => x !== id) : [...h, id]));
+  const nothing = !text && !voice && hidden.length === 0;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      await api.put(`/api/servers/${serverId}/members/${userId}/restriction`, { text, voice, durationSec, reason });
+      await api.put(`/api/servers/${serverId}/members/${userId}/restriction`, {
+        text, voice, durationSec, reason, hiddenChannelIds: hidden.filter((id) => channels.some((c) => c.id === id)),
+      });
       const label = RESTRICT_DURATIONS.find((d) => d.sec === durationSec)?.label ?? '';
       ui.toast(durationSec === null ? `${user.nickname}님의 활동을 제한했어요.` : `${user.nickname}님의 활동을 ${label} 동안 제한했어요.`, 'success');
       ui.closeModal();
@@ -814,7 +820,7 @@ export function RestrictMemberModal({ serverId, userId }: { serverId: number; us
   };
 
   return (
-    <Modal title={`${user.nickname}님 활동 제한`} subtitle="도배·분란 등을 막기 위해 정해진 시간 동안 활동을 막아요. 메시지 읽기는 그대로 할 수 있어요." size="sm">
+    <Modal title={`${user.nickname}님 활동 제한`} subtitle="도배·분란 등을 막기 위해 정해진 시간 동안 채팅·음성을 막거나 특정 채널을 숨겨요." size="sm">
       <form className="form restrict-form" onSubmit={submit}>
         {current && (
           <div className="notice restrict-current">
@@ -841,6 +847,20 @@ export function RestrictMemberModal({ serverId, userId }: { serverId: number; us
           </label>
         </div>
         <div className="field">
+          <span>숨길 채널 {hidden.length > 0 && `(${hidden.length}개)`}</span>
+          <small className="muted">고른 채널은 이 사람 목록에서 사라지고 내용도 볼 수 없어요.</small>
+          <div className="hide-channel-list" role="group" aria-label="숨길 채널">
+            {channels.map((c) => (
+              <label key={c.id} className={`hide-channel ${hidden.includes(c.id) ? 'active' : ''}`}>
+                <input type="checkbox" checked={hidden.includes(c.id)} onChange={() => toggleHidden(c.id)} aria-label={`${c.name} 숨기기`} />
+                <Icon name={c.kind === 'voice' ? 'volume' : 'hash'} size={15} />
+                <span className="ellipsis grow">{c.name}</span>
+                {hidden.includes(c.id) && <Icon name="eyeOff" size={15} />}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="field">
           <span>기간</span>
           <div className="duration-chips" role="radiogroup" aria-label="제한 기간">
             {RESTRICT_DURATIONS.map((d) => (
@@ -857,7 +877,7 @@ export function RestrictMemberModal({ serverId, userId }: { serverId: number; us
         {error && <p className="form-error">{error}</p>}
         <div className="modal-footer inline">
           <button type="button" className="btn btn-ghost" onClick={ui.closeModal}>취소</button>
-          <button className="btn btn-danger" disabled={busy || (!text && !voice)}>{current ? '제한 바꾸기' : '제한하기'}</button>
+          <button className="btn btn-danger" disabled={busy || nothing}>{current ? '제한 바꾸기' : '제한하기'}</button>
         </div>
       </form>
     </Modal>

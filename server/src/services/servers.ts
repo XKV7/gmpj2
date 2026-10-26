@@ -102,7 +102,15 @@ export function getServerPayload(serverId: number, forUserId: number | null): { 
     channels: channelRows.map((c) => serializeConversation(c, forUserId)),
     members,
   };
-  return { server, users: getPublicUsers(members.map((m) => m.userId)) };
+  const payload = { server, users: getPublicUsers(members.map((m) => m.userId)) };
+  return forUserId ? withoutChannels(payload, hiddenChannelIdsOf(serverId, forUserId)) : payload;
+}
+
+/** 숨겨진 채널을 뺀 서버 정보 */
+export function withoutChannels<T extends { server: Server }>(payload: T, hidden: number[]): T {
+  if (!hidden.length) return payload;
+  const set = new Set(hidden);
+  return { ...payload, server: { ...payload.server, channels: payload.server.channels.filter((c) => !set.has(c.id)) } };
 }
 
 export function createServer(ownerId: number, name: string): number {
@@ -209,10 +217,23 @@ export function unbanMember(ctx: ServerCtx, userId: number) {
 
 // ───────────── 활동 제한 (타임아웃) ─────────────
 
-interface RestrictionRow { user_id: number; text: number; voice: number; until: number | null; reason: string; restricted_by: number | null; created_at: number }
+interface RestrictionRow {
+  server_id: number; user_id: number; text: number; voice: number; until: number | null; reason: string; restricted_by: number | null;
+  created_at: number; hidden_channels: string;
+}
+
+function parseIds(json: string): number[] {
+  try {
+    const v: unknown = JSON.parse(json);
+    return Array.isArray(v) ? v.filter((x): x is number => Number.isInteger(x)) : [];
+  } catch {
+    return [];
+  }
+}
 
 const toRestriction = (r: RestrictionRow): MemberRestriction => ({
-  text: !!r.text, voice: !!r.voice, until: r.until, reason: r.reason, restrictedBy: r.restricted_by, createdAt: r.created_at,
+  text: !!r.text, voice: !!r.voice, hiddenChannelIds: parseIds(r.hidden_channels), until: r.until, reason: r.reason,
+  restrictedBy: r.restricted_by, createdAt: r.created_at,
 });
 
 /** 지금 걸려 있는 제한 (끝난 제한은 null) */
@@ -220,6 +241,37 @@ export function getRestriction(serverId: number, userId: number): MemberRestrict
   const row = db().prepare('SELECT * FROM member_restrictions WHERE server_id = ? AND user_id = ?').get(serverId, userId) as RestrictionRow | undefined;
   const r = row ? toRestriction(row) : null;
   return isRestrictionActive(r) ? r : null;
+}
+
+/** 이 사람에게 숨겨진 채널 (제한이 없거나 끝났으면 빈 목록) */
+export function hiddenChannelIdsOf(serverId: number, userId: number): number[] {
+  return getRestriction(serverId, userId)?.hiddenChannelIds ?? [];
+}
+
+/** 이 사람에게 보이는 서버 채널 id */
+export function visibleChannelIds(serverId: number, userId: number): number[] {
+  const hidden = new Set(hiddenChannelIdsOf(serverId, userId));
+  return channelIdsOfServers([serverId]).filter((id) => !hidden.has(id));
+}
+
+/** 사용자가 속한 모든 서버에서 그에게 숨겨진 채널 id */
+export function allHiddenChannelIds(userId: number): Set<number> {
+  const rows = db().prepare('SELECT * FROM member_restrictions WHERE user_id = ? AND (until IS NULL OR until > ?)').all(userId, now()) as RestrictionRow[];
+  return new Set(rows.flatMap((r) => parseIds(r.hidden_channels)));
+}
+
+/** 서버 멤버 중 채널이 숨겨진 사람들: userId → 숨긴 채널 */
+export function hiddenChannelsByUser(serverId: number): Map<number, number[]> {
+  const members = new Set(serverMemberIds(serverId));
+  const out = new Map<number, number[]>();
+  for (const [uid, r] of activeRestrictions(serverId)) if (r.hiddenChannelIds.length && members.has(uid)) out.set(uid, r.hiddenChannelIds);
+  return out;
+}
+
+/** 아직 끝나지 않았고 채널을 숨기는 제한 (서버가 다시 켜졌을 때 해제 예약용) */
+export function pendingHiddenExpiries(): { serverId: number; userId: number; until: number }[] {
+  const rows = db().prepare(`SELECT * FROM member_restrictions WHERE until IS NOT NULL AND until > ? AND hidden_channels != '[]'`).all(now()) as RestrictionRow[];
+  return rows.map((r) => ({ serverId: r.server_id, userId: r.user_id, until: r.until! }));
 }
 
 function activeRestrictions(serverId: number): Map<number, MemberRestriction> {
@@ -241,13 +293,18 @@ function assertCanModerate(ctx: ServerCtx, targetId: number) {
 export function restrictMember(
   ctx: ServerCtx,
   targetId: number,
-  input: { text: boolean; voice: boolean; durationSec: number | null; reason: string },
+  input: { text: boolean; voice: boolean; durationSec: number | null; reason: string; hiddenChannelIds?: number[] },
 ): MemberRestriction {
   assertCanModerate(ctx, targetId);
+  const serverChannels = new Set(channelIdsOfServers([ctx.server.id]));
+  const hidden = [...new Set(input.hiddenChannelIds ?? [])];
+  if (hidden.some((id) => !serverChannels.has(id))) throw badRequest('이 서버의 채널만 숨길 수 있어요.');
+  if (!input.text && !input.voice && !hidden.length) throw badRequest('제한할 활동이나 숨길 채널을 하나 이상 골라 주세요.');
   const t = now();
   const until = input.durationSec === null ? null : t + input.durationSec * 1000;
-  db().prepare(`INSERT OR REPLACE INTO member_restrictions (server_id, user_id, text, voice, until, reason, restricted_by, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(ctx.server.id, targetId, input.text ? 1 : 0, input.voice ? 1 : 0, until, input.reason, ctx.userId, t);
+  db().prepare(`INSERT OR REPLACE INTO member_restrictions (server_id, user_id, text, voice, hidden_channels, until, reason, restricted_by, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(ctx.server.id, targetId, input.text ? 1 : 0, input.voice ? 1 : 0, JSON.stringify(hidden), until, input.reason, ctx.userId, t);
   return getRestriction(ctx.server.id, targetId)!;
 }
 

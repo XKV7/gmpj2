@@ -3,7 +3,7 @@ import { db } from '../db/index.ts';
 import { badRequest, forbidden, notFound } from '../lib/errors.ts';
 import { getMessageRows, hydrateMessages, insertSystemMessage } from './messages.ts';
 import { areFriends, isBlockedEither } from './relationships.ts';
-import { loadServerCtx, requirePerm, serverIdsOf, type ServerCtx } from './servers.ts';
+import { allHiddenChannelIds, loadServerCtx, requirePerm, serverIdsOf, type ServerCtx } from './servers.ts';
 import { getUserRow } from './users.ts';
 import { inList, now } from './util.ts';
 
@@ -64,9 +64,15 @@ export function getAccess(userId: number, convId: number): Access {
   if (conv.kind === 'thread') {
     const parent = getConvRow(conv.parent_id!);
     if (!parent || parent.server_id === null) throw notFound('스레드를 찾을 수 없어요.');
-    return { conv, server: loadServerCtx(parent.server_id, userId), channel: parent };
+    return assertVisible({ conv, server: loadServerCtx(parent.server_id, userId), channel: parent });
   }
-  return { conv, server: loadServerCtx(conv.server_id!, userId), channel: conv };
+  return assertVisible({ conv, server: loadServerCtx(conv.server_id!, userId), channel: conv });
+}
+
+/** 활동 제한으로 숨겨진 채널(과 그 스레드)은 있는지조차 알려 주지 않는다 */
+function assertVisible(access: Access): Access {
+  if (access.server?.restriction?.hiddenChannelIds.includes(access.channel.id)) throw notFound('채널을 찾을 수 없어요.');
+  return access;
 }
 
 interface ReadRow { last_read_id: number; pinned: number; muted: number }
@@ -161,7 +167,9 @@ export function roomConversationIds(userId: number): number[] {
   const channels = servers.length
     ? (db().prepare(`SELECT id FROM conversations WHERE server_id IN (${inList(servers.length)})`).pluck().all(...servers) as number[])
     : [];
-  return [...chats, ...channels];
+  // 활동 제한으로 숨겨진 채널의 실시간 소식은 받지 않는다
+  const hidden = allHiddenChannelIds(userId);
+  return [...chats, ...channels.filter((id) => !hidden.has(id))];
 }
 
 /** 소켓 룸 이름. 스레드 이벤트는 부모 채널 룸으로 보낸다. */

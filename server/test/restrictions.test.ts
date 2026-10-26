@@ -2,11 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Perm } from '@moyeo/shared';
 import { freshDb, makeUsers } from './helpers.ts';
 import {
-  createInvite, createRole, createServer, getServerPayload, joinByInvite, leaveServer, liftRestriction, loadServerCtx, restrictMember,
+  createInvite, createRole, createServer, getServerPayload, insertChannel, joinByInvite, leaveServer, liftRestriction, loadServerCtx, restrictMember,
   setMemberRoles,
 } from '../src/services/servers.ts';
-import { editMessage, getOrCreateThread, sendMessage, toggleReaction } from '../src/services/messages.ts';
-import { updateConversation } from '../src/services/conversations.ts';
+import { editMessage, getOrCreateThread, getPage, searchMessages, sendMessage, toggleReaction } from '../src/services/messages.ts';
+import { roomConversationIds, updateConversation } from '../src/services/conversations.ts';
 
 let seq = 0;
 const send = (userId: number, conversationId: number, content = '안녕') =>
@@ -134,5 +134,68 @@ describe('서버 주인만 메시지를 보낼 수 있는 채널', () => {
     expect(() => updateConversation(u.admin!, channelId, { ownerOnly: true })).toThrow(/서버 주인만/);
     // 이름만 바꾸는 건 관리자도 된다
     updateConversation(u.admin!, channelId, { name: '공지' });
+  });
+});
+
+describe('활동 제한: 특정 채널 숨기기', () => {
+  let u: Record<string, number>;
+  let serverId: number;
+  let general: number;
+  let secret: number;
+  let lounge: number;
+  const owner = () => loadServerCtx(serverId, u.owner!);
+  const hide = (ids: number[], durationSec: number | null = 600) =>
+    restrictMember(owner(), u.troll!, { text: false, voice: false, durationSec, reason: '', hiddenChannelIds: ids });
+  const visible = (uid: number) => getServerPayload(serverId, uid).server.channels.map((c) => c.id);
+
+  beforeEach(async () => {
+    freshDb();
+    u = await makeUsers('owner', 'troll', 'friend');
+    serverId = createServer(u.owner!, '서버');
+    const inv = createInvite(owner(), null, null);
+    joinByInvite(inv.code, u.troll!);
+    joinByInvite(inv.code, u.friend!);
+    const chs = getServerPayload(serverId, u.owner!).server.channels;
+    general = chs.find((c) => c.kind === 'text')!.id;
+    lounge = chs.find((c) => c.kind === 'voice')!.id;
+    secret = insertChannel(serverId, '비밀', 'text', null, '');
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it('숨긴 채널은 목록에서 사라지고, 메시지 읽기·보내기·스레드·검색이 모두 막힌다', () => {
+    const m = send(u.friend!, secret, '비밀 이야기');
+    hide([secret, lounge]);
+    expect(visible(u.troll!)).toEqual([general]);
+    expect(visible(u.friend!)).toContain(secret);
+    expect(() => getPage(u.troll!, secret, {})).toThrow(/찾을 수 없/);
+    expect(() => send(u.troll!, secret)).toThrow(/찾을 수 없/);
+    expect(() => searchMessages(u.troll!, secret, '비밀')).toThrow(/찾을 수 없/);
+    expect(() => toggleReaction(u.troll!, m.id, '👍')).toThrow(/찾을 수 없/);
+    const thread = getOrCreateThread(u.friend!, m.id).thread;
+    expect(() => getPage(u.troll!, thread.id, {})).toThrow(/찾을 수 없/);
+    expect(roomConversationIds(u.troll!)).not.toContain(secret);
+    expect(roomConversationIds(u.troll!)).not.toContain(lounge);
+    // 다른 채널은 평소대로
+    expect(send(u.troll!, general).id).toBeGreaterThan(0);
+  });
+
+  it('기간이 지나거나 해제하면 다시 보인다', () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    hide([secret], 60);
+    expect(visible(u.troll!)).not.toContain(secret);
+    vi.setSystemTime(Date.now() + 61_000);
+    expect(visible(u.troll!)).toContain(secret);
+    expect(roomConversationIds(u.troll!)).toContain(secret);
+    hide([secret], null);
+    expect(visible(u.troll!)).not.toContain(secret);
+    liftRestriction(owner(), u.troll!);
+    expect(send(u.troll!, secret).id).toBeGreaterThan(0);
+  });
+
+  it('다른 서버의 채널은 숨길 수 없다', () => {
+    const other = createServer(u.friend!, '다른 서버');
+    const foreign = getServerPayload(other, u.friend!).server.channels[0]!.id;
+    expect(() => hide([foreign])).toThrow(/이 서버의 채널만/);
   });
 });
