@@ -3,6 +3,7 @@ import { computePermissions, hasPerm, Perm, type Conversation, type Server } fro
 import { api } from '../lib/api';
 import { formatShort } from '../lib/format';
 import { toPlainText } from '../lib/markdown';
+import { enablePush, pushSupported } from '../lib/push';
 import { voiceEngine } from '../lib/rtc';
 import { acceptGroupInvite, declineGroupInvite, leaveGroup, markRead, setConversationPrefs, setPresencePref } from '../store/actions';
 import { useData } from '../store/data';
@@ -156,8 +157,22 @@ function NotificationBanner() {
   return (
     <div className="notif-banner">
       <Icon name="bell" size={16} />
-      <span className="grow">새 메시지 알림을 받아 보세요</span>
-      <button className="btn btn-xs btn-primary" onClick={() => void Notification.requestPermission().then((p) => { setPerm(p); if (p !== 'default') close(); })}>켜기</button>
+      <span className="grow">새 메시지를 알림창으로 받아 보세요</span>
+      <button
+        className="btn btn-xs btn-primary"
+        onClick={() => {
+          // 기기 알림창(푸시)까지 켜고, 지원하지 않는 브라우저면 창이 열려 있을 때 알림만
+          const done = () => {
+            const p = Notification.permission;
+            setPerm(p);
+            if (p !== 'default') close();
+          };
+          if (pushSupported()) void enablePush().then(() => ui.toast('알림을 켰어요. 앱을 닫아도 알림창에 떠요.', 'success')).catch(ui.error).finally(done);
+          else void Notification.requestPermission().then(done);
+        }}
+      >
+        켜기
+      </button>
       <button className="icon-btn tiny" onClick={close} aria-label="닫기"><Icon name="x" size={14} /></button>
     </div>
   );

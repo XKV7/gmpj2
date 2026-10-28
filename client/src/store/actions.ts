@@ -1,5 +1,6 @@
 import { LIMITS, type Attachment, type BootstrapData, type Conversation, type Me, type MessagePage, type PublicUser, type Server } from '@moyeo/shared';
 import { api, errorMessage, uploadFile } from '../lib/api';
+import { disablePush } from '../lib/push';
 import { emitAck, socket } from '../lib/socket';
 import { data, emptyLog, resetData, useData, type OutboxItem, type UploadItem } from './data';
 import { navigate, ui, useUI } from './ui';
@@ -30,6 +31,8 @@ export async function register(username: string, nickname: string, password: str
 }
 
 export async function logout() {
+  // 이 기기의 알림이 다음에 로그인할 다른 계정에게 가지 않도록 먼저 끈다
+  await disablePush().catch(() => undefined);
   try {
     await api.post('/api/auth/logout');
   } finally {

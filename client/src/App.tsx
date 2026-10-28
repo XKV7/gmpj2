@@ -5,6 +5,7 @@ import { bootstrap, ensureConversation, fetchMe } from './store/actions';
 import { data, resetData, useData } from './store/data';
 import { startRealtime, stopRealtime } from './store/realtime';
 import { applyTheme, navigate, pathToRoute, ui, useUI } from './store/ui';
+import { syncPush } from './lib/push';
 import { AuthScreen } from './components/AuthScreen';
 import { ChatView } from './components/ChatView';
 import { EmptyState } from './components/EmptyState';
@@ -83,8 +84,19 @@ function Shell() {
         const r = useUI.getState().route;
         if (r.view === 'chat' && !(await ensureConversation(r.conversationId))) navigate({ view: 'friends' }, { replace: true });
         if (r.view === 'server' && !useData.getState().servers[r.serverId]) navigate({ view: 'friends' }, { replace: true });
+        void syncPush();
       })
       .catch(ui.error);
+    // 기기 알림을 눌렀을 때 서비스 워커가 보내는 "이 대화로 이동"
+    const onSwMessage = (e: MessageEvent) => {
+      const msg = e.data as { type?: string; path?: string } | null;
+      if (msg?.type !== 'moyeo:navigate' || !msg.path) return;
+      const r = pathToRoute(msg.path);
+      if (r.view === 'invite') return;
+      navigate(r);
+      if (r.view === 'chat') void ensureConversation(r.conversationId);
+    };
+    navigator.serviceWorker?.addEventListener('message', onSwMessage);
     startRealtime();
     const onPop = () => {
       const r = pathToRoute(location.pathname);
@@ -102,6 +114,7 @@ function Shell() {
     return () => {
       window.removeEventListener('popstate', onPop);
       window.removeEventListener('keydown', onKey);
+      navigator.serviceWorker?.removeEventListener('message', onSwMessage);
     };
   }, []);
 

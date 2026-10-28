@@ -232,4 +232,23 @@ CREATE TABLE member_restrictions (
     name: 'hide specific channels from a restricted member',
     sql: `ALTER TABLE member_restrictions ADD COLUMN hidden_channels TEXT NOT NULL DEFAULT '[]';`,
   },
+  {
+    version: 8,
+    name: 'web push subscriptions + app settings (VAPID keys)',
+    sql: `
+CREATE TABLE push_subscriptions (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX push_subscriptions_user ON push_subscriptions(user_id);
+CREATE TABLE app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+`,
+  },
 ];

@@ -10,10 +10,11 @@ import { limits } from '../lib/rateLimit.ts';
 import { getSessionUserId, tokenFromCookieHeader } from '../services/auth.ts';
 import { countUnread, getAccess, getReadState, markRead, roomConversationIds, roomOf } from '../services/conversations.ts';
 import { deleteMessage, editMessage, sendMessage, setPinned, syncMessages, toggleReaction, bumpUpdated } from '../services/messages.ts';
-import { addSocket, effectivePresence, removeSocket, setSocketIdle } from '../services/presence.ts';
+import { addSocket, effectivePresence, removeSocket, setSocketFocused, setSocketIdle } from '../services/presence.ts';
 import { serverIdsOf } from '../services/servers.ts';
 import { getUserRow } from '../services/users.ts';
 import { emitMessageUpdate, emitNewMessage, emitSystemMessage, emitToRoom, emitToUser, pushPresence, type IO } from './hub.ts';
+import { pushNewMessage } from '../services/push.ts';
 import { acceptCall, declineCall, joinVoice, leaveVoice, relaySignal, startCall, updateVoiceState } from './voice.ts';
 
 type S = Socket & { data: { userId: number } };
@@ -73,6 +74,7 @@ export function attachSocketHandlers(io: IO) {
       const { message, created, conv } = sendMessage(userId, input);
       if (created) {
         emitNewMessage(conv, message);
+        pushNewMessage(conv, message);
         if (conv.kind === 'thread' && conv.parent_message_id) bumpUpdated(conv.parent_message_id);
       }
       return { message };
@@ -148,6 +150,10 @@ export function attachSocketHandlers(io: IO) {
       const prev = presenceOf(userId);
       setSocketIdle(userId, socket.id, idle);
       if (presenceOf(userId) !== prev) pushPresence(userId);
+    });
+
+    socket.on('focus', (p) => {
+      setSocketFocused(userId, socket.id, !!(p && typeof p === 'object' && (p as { focused?: unknown }).focused === true));
     });
 
     socket.on('sync', handler((p) => {

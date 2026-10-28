@@ -178,5 +178,11 @@ export const voiceSignalSchema = z.object({
   }),
 });
 
+export const pushSubscriptionSchema = z.object({
+  endpoint: z.string().url().max(2000),
+  keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
+});
+export const pushUnsubscribeSchema = z.object({ endpoint: z.string().max(2000) });
+
 export const callStartSchema = z.object({ conversationId: id, video: z.boolean() });
 export const callIdSchema = z.object({ conversationId: id });

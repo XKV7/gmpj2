@@ -1,6 +1,7 @@
 import { LIMITS, type Conversation, type Message, type SyncResult } from '@moyeo/shared';
 import { emitAck, socket } from '../lib/socket';
 import { sounds } from '../lib/sounds';
+import { pushOnHere } from '../lib/push';
 import { toPlainText } from '../lib/markdown';
 import { bootstrap, ensureConversation, loadLatest, logout, pumpOutbox, restoreOutbox } from './actions';
 import { data, useData } from './data';
@@ -36,6 +37,7 @@ export function startRealtime() {
     if (!firstConnect) await resync();
     firstConnect = false;
     socket.emit('activity', { idle: isIdle });
+    reportFocus();
     pumpOutbox();
     voiceEngine.onReconnect();
   });
@@ -249,6 +251,8 @@ function notify(convId: number, message: Message, mentioned: boolean, live: bool
   if (live && active) return;
   if (settings.sound) (mentioned ? sounds.mention : sounds.message)();
   if (active || !settings.desktopNotifications || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  // 기기 알림(푸시)이 켜진 기기는 서버가 보낸 알림이 알림창에 뜨므로 겹치지 않게 여기서는 띄우지 않는다
+  if (pushOnHere()) return;
   const author = s.users[message.authorId];
   const title = conv.kind === 'dm' ? author?.nickname ?? '새 메시지' : `${author?.nickname ?? ''} · ${displayName(conv)}`;
   let body = toPlainText(message.content, nameOf);
@@ -290,6 +294,13 @@ function setupIdleDetection() {
   }, 15_000);
   window.addEventListener('focus', () => useUI.setState({ focused: true }));
   window.addEventListener('blur', () => useUI.setState({ focused: false }));
+  for (const ev of ['focus', 'blur']) window.addEventListener(ev, reportFocus);
+  document.addEventListener('visibilitychange', reportFocus);
+}
+
+/** 서버에 "지금 이 창을 보고 있다/아니다"를 알린다 — 보고 있으면 기기 알림을 보내지 않는다 */
+function reportFocus() {
+  if (socket.connected) socket.emit('focus', { focused: document.visibilityState === 'visible' && document.hasFocus() });
 }
 
 // ───── 탭 제목 배지 ─────

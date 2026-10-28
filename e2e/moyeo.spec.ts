@@ -338,6 +338,9 @@ test('검색 · 고정 · 빠른 이동 · 설정 화면', async () => {
   await expect(msg(A.page, '안녕 보브!').first()).toHaveClass(/flash/);
   // 메시지 고정
   const m = msg(A.page, '나도 반가워 앨리스!');
+  // 앞선 테스트의 메시지들로 화면 밖에 있으니 먼저 보이게 한 뒤 올린다
+  await m.scrollIntoViewIfNeeded();
+  await A.page.waitForTimeout(200);
   await m.hover();
   await m.getByLabel('더 보기').click();
   await A.page.getByRole('menuitem', { name: '메시지 고정' }).click();
@@ -565,4 +568,41 @@ test('활동 제한: 특정 채널을 숨기면 그 사람에게서 사라지고
   await A.page.locator('.modal').last().getByRole('button', { name: '제한 해제' }).click();
   await A.page.locator('.modal').last().getByRole('button', { name: '닫기' }).click();
   await expect(cLounge).toHaveCount(1);
+});
+
+test('기기 알림: 설정 화면 + 서비스 워커가 푸시를 받으면 알림창에 띄운다', async () => {
+  // 설정 → 알림에 "기기 알림창에 표시"가 있다
+  await A.page.getByLabel('설정', { exact: true }).click();
+  await A.page.locator('.settings-nav').getByRole('button', { name: '알림' }).click();
+  await expect(A.page.getByText('기기 알림창에 표시')).toBeVisible();
+  await shot(A.page, 'desktop-light-push-settings');
+  await A.page.locator('.modal').last().getByRole('button', { name: '닫기' }).click();
+
+  // 서비스 워커 등록 (앱이 시작할 때 자동으로 등록됨)
+  const origin = new URL(A.page.url()).origin;
+  await A.ctx.grantPermissions(['notifications'], { origin });
+  await A.page.evaluate(async () => {
+    await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+  });
+  // 푸시 서버가 보낸 것과 같은 알림을 DevTools로 서비스 워커에 직접 전달
+  const cdp = await A.ctx.newCDPSession(A.page);
+  const regId = new Promise<string>((resolve) => {
+    cdp.on('ServiceWorker.workerRegistrationUpdated', ({ registrations }) => {
+      const r = registrations.find((x: { scopeURL: string; isDeleted: boolean }) => x.scopeURL === `${origin}/` && !x.isDeleted);
+      if (r) resolve(r.registrationId);
+    });
+  });
+  await cdp.send('ServiceWorker.enable');
+  await cdp.send('ServiceWorker.deliverPushMessage', {
+    origin,
+    registrationId: await regId,
+    data: JSON.stringify({ title: '보브', body: '앱을 닫아도 보이는 알림', tag: 'conv-1', url: '/chat/1' }),
+  });
+  await expect
+    .poll(() => A.page.evaluate(async () => {
+      const reg = await navigator.serviceWorker.ready;
+      return (await reg.getNotifications()).map((n) => ({ title: n.title, body: n.body, tag: n.tag, url: (n.data as { url: string }).url }));
+    }))
+    .toEqual([{ title: '보브', body: '앱을 닫아도 보이는 알림', tag: 'conv-1', url: '/chat/1' }]);
 });

@@ -3,6 +3,7 @@ import { BANNER_COLORS, LIMITS, type PublicUser } from '@moyeo/shared';
 import { api, errorMessage, uploadFile } from '../lib/api';
 import { formatFull } from '../lib/format';
 import { listDevices, voiceEngine } from '../lib/rtc';
+import { disablePush, enablePush, getPushState, isAppleMobile, sendTestPush, type PushState } from '../lib/push';
 import { sounds } from '../lib/sounds';
 import { acceptFriend, blockUser, createGroup, logout, openDm, removeFriend, sendFriendRequest, unblockUser } from '../store/actions';
 import { startCall } from '../store/calls';
@@ -361,12 +362,94 @@ function AppearanceSettings() {
   );
 }
 
-function Toggle({ label, desc, checked, onChange }: { label: string; desc?: string; checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({ label, desc, checked, onChange, disabled }: { label: string; desc?: string; checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <label className="perm-row">
       <span className="grow"><strong>{label}</strong>{desc && <small>{desc}</small>}</span>
-      <input type="checkbox" className="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <input type="checkbox" className="switch" checked={checked} disabled={disabled} aria-label={label} onChange={(e) => onChange(e.target.checked)} />
     </label>
+  );
+}
+
+/** 기기 알림창(푸시) — 앱을 닫아도 휴대폰·태블릿·PC 알림창에 뜬다 */
+function DevicePushSettings() {
+  const [state, setState] = useState<PushState | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    void getPushState().then(setState);
+  }, []);
+  const toggle = async (on: boolean) => {
+    setBusy(true);
+    try {
+      if (on) {
+        await enablePush();
+        ui.toast('이 기기에서 알림창 알림을 켰어요.', 'success');
+      } else {
+        await disablePush();
+        ui.toast('이 기기의 알림창 알림을 껐어요.');
+      }
+    } catch (err) {
+      ui.error(err);
+    } finally {
+      setState(await getPushState());
+      setBusy(false);
+    }
+  };
+  const test = async () => {
+    setBusy(true);
+    try {
+      const sent = await sendTestPush();
+      if (sent > 0) ui.toast('테스트 알림을 보냈어요. 알림창을 확인해 보세요.', 'success');
+      else ui.toast('알림을 보내지 못했어요. 끄고 다시 켜 보세요.', 'error');
+    } catch (err) {
+      ui.error(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="push-settings">
+      <Toggle
+        label="기기 알림창에 표시"
+        desc="앱을 닫거나 화면을 꺼 둬도 휴대폰·태블릿·PC의 알림창(화면 위에서 아래로 내리는 곳)에 새 메시지를 띄워요. 기기마다 따로 켜야 해요."
+        checked={state === 'on'}
+        disabled={busy || state === null || state === 'unsupported' || state === 'needs-install'}
+        onChange={(v) => void toggle(v)}
+      />
+      {state === 'on' && (
+        <button className="btn btn-soft btn-sm self-start" disabled={busy} onClick={() => void test()}>
+          <Icon name="bell" size={14} /> 테스트 알림 보내기
+        </button>
+      )}
+      {state === 'needs-install' && (
+        <div className="notice push-help">
+          <Icon name="alert" size={16} />
+          <span className="grow">
+            <strong>아이패드·아이폰은 홈 화면 앱에서 켤 수 있어요</strong>
+            <small>① Safari에서 공유 버튼(네모에 위쪽 화살표) → ② "홈 화면에 추가" → ③ 홈 화면에 생긴 모여 아이콘으로 열어서 여기서 켜 주세요. (iPadOS·iOS 16.4 이상)</small>
+          </span>
+        </div>
+      )}
+      {state === 'denied' && (
+        <div className="notice push-help">
+          <Icon name="alert" size={16} />
+          <span className="grow">
+            <strong>알림이 차단되어 있어요</strong>
+            <small>
+              {isAppleMobile()
+                ? '설정 앱 → 알림 → 모여에서 알림 허용을 켜 주세요.'
+                : '주소창 왼쪽의 자물쇠(또는 사이트 정보) 아이콘 → 권한 → 알림을 "허용"으로 바꾼 뒤 새로고침해 주세요.'}
+            </small>
+          </span>
+        </div>
+      )}
+      {state === 'unsupported' && (
+        <div className="notice push-help">
+          <Icon name="alert" size={16} />
+          <span className="grow"><small>이 브라우저는 알림창 알림을 지원하지 않아요. Chrome, 삼성 인터넷, Edge, Firefox, Safari 최신 버전에서 열어 주세요.</small></span>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -376,20 +459,22 @@ function NotificationSettings() {
   return (
     <div className="settings-section">
       <h3>알림</h3>
+      <DevicePushSettings />
       <Toggle
-        label="데스크톱 알림"
-        desc="창이 비활성일 때 새 메시지를 브라우저 알림으로 알려 줘요. DM·그룹은 모든 메시지, 서버 채널은 나를 멘션했을 때만 알려요."
+        label="창이 열려 있을 때 알림"
+        desc="모여 탭이 열려 있지만 다른 창을 보고 있을 때 새 메시지를 알려 줘요. DM·그룹은 모든 메시지, 서버 채널은 나를 멘션했을 때만 알려요."
         checked={settings.desktopNotifications}
         onChange={(v) => {
           ui.updateSettings({ desktopNotifications: v });
           if (v && typeof Notification !== 'undefined' && Notification.permission === 'default') void Notification.requestPermission().then(setPerm);
         }}
       />
-      {settings.desktopNotifications && perm !== 'granted' && (
+      {/* 차단 안내는 위 기기 알림 항목에서 한 번만 보여 준다 */}
+      {settings.desktopNotifications && perm !== 'granted' && perm !== 'denied' && (
         <div className="notice">
           <Icon name="alert" size={16} />
-          <span className="grow">{perm === 'denied' ? '브라우저에서 알림이 차단되어 있어요. 주소창의 사이트 설정에서 알림을 허용해 주세요.' : typeof Notification === 'undefined' ? '이 브라우저는 알림을 지원하지 않아요.' : '알림 권한이 필요해요.'}</span>
-          {perm === 'default' && typeof Notification !== 'undefined' && <button className="btn btn-primary btn-xs" onClick={() => void Notification.requestPermission().then(setPerm)}>권한 요청</button>}
+          <span className="grow">알림 권한이 필요해요.</span>
+          {typeof Notification !== 'undefined' && <button className="btn btn-primary btn-xs" onClick={() => void Notification.requestPermission().then(setPerm)}>권한 요청</button>}
         </div>
       )}
       <Toggle label="메시지 알림음" desc="새 메시지가 오면 짧은 소리를 들려줘요." checked={settings.sound} onChange={(v) => { ui.updateSettings({ sound: v }); if (v) sounds.message(); }} />

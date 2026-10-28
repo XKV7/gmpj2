@@ -211,3 +211,9 @@ kbd {
 .live-icon { color: var(--success); }
 .copyable { cursor: pointer; color: var(--accent); }
 mark { background: color-mix(in srgb, var(--warning) 35%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; }
+
+/* 기기 알림(푸시) 설정 */
+.push-settings { display: flex; flex-direction: column; gap: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.push-help { align-items: flex-start; }
+.push-help .grow { display: flex; flex-direction: column; gap: 3px; }
+.push-help small { color: var(--text-2); line-height: 1.5; }

@@ -41,6 +41,8 @@ export interface ClientToServerEvents {
   typing: (p: unknown) => void;
   'presence:set': (p: unknown, ack: Ack) => void;
   activity: (p: { idle: boolean }) => void;
+  /** 이 창을 지금 보고 있는지 — 보고 있으면 서버가 기기 알림(푸시)을 보내지 않는다 */
+  focus: (p: { focused: boolean }) => void;
   sync: (p: unknown, ack: Ack<SyncResult>) => void;
   'voice:join': (p: unknown, ack: Ack<{ participants: VoiceParticipant[] }>) => void;
   'voice:leave': (p: unknown, ack: Ack) => void;

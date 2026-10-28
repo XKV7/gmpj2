@@ -126,6 +126,10 @@ npm start          # 하나의 포트(3001)에서 API + 화면을 함께 제공
 - 입장/퇴장/음소거/벨소리 효과음 — 오디오 파일 없이 Web Audio로 즉석 생성
 
 ### 알림
+- **기기 알림창(웹 푸시)**: 설정 → 알림 → `기기 알림창에 표시`를 켜면 앱(탭)을 닫거나 화면을 꺼 둬도 휴대폰·태블릿·PC의 알림창(화면 위에서 내리는 곳)에 새 메시지가 뜸. 누르면 그 대화가 열림. 기기마다 따로 켜고, `테스트 알림 보내기`로 확인 가능
+  - 안드로이드(Chrome·삼성 인터넷), PC(Chrome·Edge·Firefox·Safari)는 바로 켤 수 있음
+  - 아이패드·아이폰은 Safari 공유 버튼 → **홈 화면에 추가** 후, 홈 화면의 모여 앱에서 켜야 함 (iPadOS·iOS 16.4 이상)
+  - 지금 어느 기기에서든 모여 화면을 보고 있으면 보내지 않고, 로그아웃하면 그 기기의 알림도 꺼짐. 같은 대화 알림은 하나로 묶임
 - 브라우저 알림(권한 요청 배너/설정), **창이 비활성일 때만** 표시, 클릭하면 해당 대화로 이동
 - 탭 제목에 안 읽은 수 `(3) 모여`, 메시지 수신음 (설정에서 끄기 가능)
 - 방해 금지 상태이거나 알림을 끈 방은 소리·알림 없음. 서버 채널은 나를 멘션했을 때만 알림
@@ -214,6 +218,8 @@ docker run -p 3001:3001 -v moyeo-data:/data moyeo
 | `FIREBASE_SERVICE_ACCOUNT` | — | Firebase 서비스 계정 키 JSON (또는 base64). 설정하면 DB·업로드를 Firestore에 백업/복원 |
 | `FIREBASE_COLLECTION` | `moyeo` | 백업에 쓸 Firestore 컬렉션 이름 |
 | `MOYEO_BACKUP_INTERVAL_MS` | `30000` | 백업 최대 간격 |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | (자동 생성) | 기기 알림(웹 푸시)용 서버 키. 없으면 처음 실행할 때 만들어 DB에 저장(Firebase 백업에 함께 보존). 직접 정하려면 `npx web-push generate-vapid-keys` |
+| `VAPID_SUBJECT` | `PUBLIC_URL` | 푸시 서버에 알릴 연락처(`https://…` 또는 `mailto:…`) |
 | `METERED_DOMAIN`, `METERED_API_KEY` / `CLOUDFLARE_TURN_KEY_ID`, `CLOUDFLARE_TURN_API_TOKEN` / `TURN_URLS`, `TURN_USERNAME`, `TURN_CREDENTIAL` | — | 다른 네트워크끼리 통화용 TURN 서버 (하나만) |
 
 ---
@@ -284,6 +290,8 @@ docker run -p 3001:3001 -v moyeo-data:/data moyeo
 | `sessions` | token_hash(PK), user_id, expires_at | 로그인 세션 (30일) |
 | `relationships` | (user_id, other_id), type = friend / incoming / outgoing / blocked | 친구·요청·차단 (양방향 행) |
 | `conversations` | id, kind = dm / group / text / voice / thread, name, icon, topic, owner_id, server_id, category_id, position, parent_id, parent_message_id, owner_only(서버 주인 전용), dm_key(유일), last_message_id, last_activity_at | 모든 대화 공간을 하나로: DM, 그룹, 서버 채널, 스레드 |
+| `push_subscriptions` | id, user_id, endpoint(유일), p256dh, auth | 기기 알림을 받을 기기(브라우저) 목록. 만료되면(404/410) 자동 삭제 |
+| `app_settings` | key, value | 서버 설정값 (기기 알림용 VAPID 키) |
 | `group_invites` | (conversation_id, user_id), inviter_id | 그룹 초대장. 수락하면 `conversation_members`로 옮겨지고, 거절하면 지워짐 |
 | `member_restrictions` | (server_id, user_id), text, voice, hidden_channels(JSON), until(NULL=해제할 때까지), reason, restricted_by | 활동 제한. 권한 계산 때 해당 권한 비트를 빼서 모든 검사에 반영 |
 | `server_bans` | (server_id, user_id), banned_by, created_at | 서버 차단 목록. 서버 참가는 이 표를 반드시 거침 |
@@ -344,6 +352,7 @@ docker run -p 3001:3001 -v moyeo-data:/data moyeo
 | `PATCH /api/users/me`, `POST·DELETE /api/users/me/avatar`, `GET /api/users/:id` | 프로필 |
 | `POST /api/friends/requests`, `POST /api/friends/:id/accept`, `DELETE /api/friends/:id`, `POST·DELETE /api/users/:id/block` | 친구·차단 |
 | `POST /api/conversations/dm · group`, `GET·PATCH /api/conversations/:id`, `POST …/icon`, `POST …/members`(초대장 보내기), `POST /api/group-invites/:id/accept · decline`, `DELETE …/members/me`, `PUT …/prefs` | 대화방 |
+| `GET /api/push/key`, `POST /api/push/subscribe · unsubscribe · test` | 기기 알림(웹 푸시) |
 | `GET /api/conversations/:id/messages?before·after·around`, `…/search?q&authorId`, `…/pins` | 메시지 페이지·검색·고정 목록 |
 | `POST /api/messages/:id/thread` | 스레드 열기 |
 | `POST /api/uploads` | 파일 업로드 (multipart) |

@@ -11,6 +11,7 @@ import { logger } from './lib/logger.ts';
 import { limits } from './lib/rateLimit.ts';
 import { authRoutes } from './routes/auth.ts';
 import { conversationRoutes } from './routes/conversations.ts';
+import { pushRoutes } from './routes/push.ts';
 import { serverRoutes } from './routes/servers.ts';
 import { userRoutes } from './routes/users.ts';
 
@@ -69,6 +70,7 @@ export async function buildApp() {
   await app.register(authRoutes);
   await app.register(userRoutes);
   await app.register(conversationRoutes);
+  await app.register(pushRoutes);
   await app.register(serverRoutes);
 
   app.get('/api/health', async () => ({ ok: true }));

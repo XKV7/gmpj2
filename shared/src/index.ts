@@ -4,3 +4,4 @@ export * from './readCount.ts';
 export * from './constants.ts';
 export * from './schemas.ts';
 export * from './events.ts';
+export * from './plainText.ts';

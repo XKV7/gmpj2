@@ -384,18 +384,4 @@ export function isJumboEmoji(content: string): boolean {
   return count <= 3;
 }
 
-/** 미리보기용 평문 (채팅 목록, 알림, 답장 인용) */
-export function toPlainText(content: string, nameOf: (id: number) => string): string {
-  return content
-    .replace(/```[\w+#.-]*\n?([\s\S]*?)```/g, (_, code: string) => code.trim().split('\n')[0] ?? '')
-    .replace(/<@(\d+)>/g, (_, id: string) => `@${nameOf(Number(id))}`)
-    .replace(/<@everyone>/g, '@모두')
-    .replace(/^\s{0,3}#{1,6}\s+/gm, '')
-    .replace(/^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?\s*$/gm, '')
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '🖼 $1')
-    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '$1')
-    .replace(/\|/g, ' ')
-    .replace(/(\*\*|__|~~|`)/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+export { toPlainText } from '@moyeo/shared';
