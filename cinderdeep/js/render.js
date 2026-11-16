@@ -26,7 +26,9 @@
     ch = Math.round(ch);
     canvas.width = R.cw = cw;
     canvas.height = R.ch = ch;
-    R.scale = Math.min(cw, ch) / 720;
+    // world units across the short side of the screen; small phones get a closer view
+    const V = U.clamp(Math.min(window.innerWidth, window.innerHeight) * 1.4, 540, 720);
+    R.scale = Math.min(cw, ch) / V;
     R.viewW = cw / R.scale;
     R.viewH = ch / R.scale;
     lw = lcan.width = Math.ceil(cw / LS);
@@ -491,6 +493,9 @@
     g.fillRect(0, 0, lw, lh);
     g.setTransform(k, 0, 0, k, -R.left * k, -R.top * k);
     g.globalCompositeOperation = 'lighter';
+    L.drawSeen();
+    g.imageSmoothingEnabled = true;
+    g.drawImage(L.mem, 0, 0, L.w, L.h, 0, 0, L.pw, L.ph);
     const fl = 1 + 0.035 * Math.sin(R.t * 11) + 0.025 * Math.sin(R.t * 23.7);
     if (p.lightR > 8) polyLight(g, W.poly, CD.World.NR, p.x, p.y, p.lightR * fl, lan.light, 1);
     for (const b of W.braziers) {
@@ -498,7 +503,7 @@
       if (b.lit) {
         if (!b.poly) b.poly = L.lightPoly(b.x, b.y, 340, 240, new Float32Array(480), false);
         polyLight(g, b.poly, 240, b.x, b.y, 340 * (1 + 0.04 * Math.sin(R.t * 9 + b.anim)), [255, 176, 96], 0.95);
-      } else radial(g, b.x, b.y, 50 + b.progress * 160, [255, 150, 70], 0.28 + b.progress * 0.6);
+      } else radial(g, b.x, b.y, 50 + b.progress * 150, [255, 120, 50], 0.25 + b.progress * 0.4);
     }
     const gt = W.gate;
     if (gt.open && !gt.hidden && inView(gt.x, gt.y, 260)) radial(g, gt.x, gt.y, 230 + 14 * Math.sin(R.t * 3), [150, 200, 255], 0.8);
@@ -523,9 +528,13 @@
       if (r.r1 > 150) radial(g, r.x, r.y, r.r0 + (r.r1 - r.r0) * t + 60, [255, 200, 140], 0.6 * (1 - t));
     }
     for (const b of FX.bolts) radial(g, b.pts[b.pts.length - 2], b.pts[b.pts.length - 1], 90, [170, 215, 255], 0.5 * (b.life / b.max));
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'multiply';
+    g.fillStyle = U.rgb(L.pal.grade);
+    g.fillRect(0, 0, lw, lh);
+    g.globalCompositeOperation = 'lighter';
     // victory: the deep fills with light
     if (W.victoryT >= 0) {
-      g.setTransform(1, 0, 0, 1, 0, 0);
       g.fillStyle = `rgba(255,236,200,${Math.min(1, W.victoryT / 2.2)})`;
       g.fillRect(0, 0, lw, lh);
     }

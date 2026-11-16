@@ -41,13 +41,13 @@
     },
     prism: {
       weapon: 'scatter', cost: 120, color: '#ffe9a8', light: [255, 226, 170],
-      base: { dmg: 6.5, rate: 1.5, cost: 1.1, speed: 700, pellets: 6, maxFlame: 115 },
+      base: { dmg: 7, rate: 1.5, cost: 1.1, speed: 700, pellets: 6, maxFlame: 120 },
       name: { ko: '볕조각 등불', en: 'Sunshard Lantern' },
       desc: { ko: '빛 조각을 부채꼴로 흩뿌린다. 가까울수록 치명적이며 불꽃 통이 크다.', en: 'Scatters shards of light in a cone. Devastating up close, with a deeper oil well.' },
     },
     storm: {
       weapon: 'arc', cost: 300, color: '#9fd8ff', light: [190, 222, 255],
-      base: { dmg: 9, rate: 3.2, cost: 0.42, range: 340, chain: 2, maxFlame: 90 },
+      base: { dmg: 11, rate: 3.6, cost: 0.4, range: 350, chain: 2, maxFlame: 90 },
       name: { ko: '뇌광 등불', en: 'Storm Lantern' },
       desc: { ko: '조준 방향의 그림자에게 번개가 튀어 연쇄한다. 빗나가면 불꽃을 쓰지 않는다.', en: 'Lightning leaps to shades in your aim and chains onward. Costs no flame on a miss.' },
     },
@@ -65,9 +65,9 @@
     lurker: { hp: 32, spd: 205, dmg: 16, r: 13, embers: 4, name: { ko: '잠복자', en: 'Lurker' }, desc: { ko: '빛 속에서도 보이지 않다가 코앞에서 모습을 드러낸다.', en: 'Unseen even in the light, until it is already upon you.' } },
     wraith: { hp: 36, spd: 80, dmg: 12, r: 15, embers: 4, ghost: true, name: { ko: '벽 지나는 망령', en: 'Wallwraith' }, desc: { ko: '벽을 그대로 통과한다. 벽은 더 이상 방패가 아니다.', en: 'Passes through stone. Walls will not save you from it.' } },
     warden: { hp: 64, spd: 78, dmg: 14, r: 18, embers: 6, shield: true, name: { ko: '방패지기', en: 'Shieldwarden' }, desc: { ko: '정면의 공격을 막아낸다. 등 뒤를 노리거나 섬광으로 무너뜨려라.', en: 'Blocks everything from the front. Flank it, or stagger it with a flare.' } },
-    boss1: { hp: 1800, spd: 70, dmg: 18, r: 46, embers: 30, boss: true, heavy: true, name: { ko: '어둠아귀', en: 'The Gloom Maw' }, desc: { ko: '세 번째 심도의 주인. 삼킨 불빛만큼 커졌다.', en: 'Lord of the third depth. It has grown fat on swallowed light.' } },
-    boss2: { hp: 4500, spd: 85, dmg: 18, r: 40, embers: 40, boss: true, heavy: true, name: { ko: '밀랍 과부', en: 'The Tallow Widow' }, desc: { ko: '화로의 불을 훔쳐 끄고, 어둠 속에서 다시 나타난다.', en: 'She snuffs the braziers and steps back out of the dark.' } },
-    boss3: { hp: 9000, spd: 60, dmg: 20, r: 36, embers: 60, boss: true, heavy: true, name: { ko: '불 꺼진 자', en: 'The Unlit' }, desc: { ko: '처음으로 등불을 들고 내려왔던 자. 불이 꺼진 뒤에도 내려가기를 멈추지 않았다.', en: 'The first to carry a lantern down. It kept descending after its flame went out.' } },
+    boss1: { hp: 1600, spd: 60, dmg: 15, r: 46, embers: 30, boss: true, heavy: true, name: { ko: '어둠아귀', en: 'The Gloom Maw' }, desc: { ko: '세 번째 심도의 주인. 삼킨 불빛만큼 커졌다.', en: 'Lord of the third depth. It has grown fat on swallowed light.' } },
+    boss2: { hp: 5600, spd: 85, dmg: 18, r: 40, embers: 40, boss: true, heavy: true, name: { ko: '밀랍 과부', en: 'The Tallow Widow' }, desc: { ko: '화로의 불을 훔쳐 끄고, 어둠 속에서 다시 나타난다.', en: 'She snuffs the braziers and steps back out of the dark.' } },
+    boss3: { hp: 11500, spd: 60, dmg: 20, r: 40, embers: 60, boss: true, heavy: true, name: { ko: '불 꺼진 자', en: 'The Unlit' }, desc: { ko: '처음으로 등불을 들고 내려왔던 자. 불이 꺼진 뒤에도 내려가기를 멈추지 않았다.', en: 'The first to carry a lantern down. It kept descending after its flame went out.' } },
   };
   D.BESTIARY = ['creeper', 'mite', 'darter', 'spitter', 'brute', 'nest', 'bomber', 'lurker', 'warden', 'wraith', 'boss1', 'boss2', 'boss3'];
 
@@ -222,9 +222,9 @@
 
   // ---------- biomes ----------
   D.BIOMES = [
-    { name: { ko: '잿빛 공동', en: 'Ashen Hollows' }, floor: [156, 140, 120], wallTop: [44, 38, 36], face: [112, 98, 84], rim: [190, 170, 142], ambient: [9, 10, 17], fungi: ['#7fe0c0', '#ffd27f'], fog: [255, 190, 130] },
-    { name: { ko: '침수 회랑', en: 'Drowned Galleries' }, floor: [112, 142, 148], wallTop: [26, 42, 50], face: [70, 104, 112], rim: [150, 196, 198], ambient: [5, 11, 17], fungi: ['#6fb8ff', '#9affe0'], fog: [150, 210, 255] },
-    { name: { ko: '흑요 심장', en: 'Obsidian Heart' }, floor: [146, 120, 150], wallTop: [36, 24, 46], face: [98, 68, 112], rim: [196, 150, 206], ambient: [11, 5, 15], fungi: ['#ff7ad0', '#b48cff'], fog: [255, 150, 220] },
+    { name: { ko: '잿빛 공동', en: 'Ashen Hollows' }, floor: [156, 140, 120], wallTop: [44, 38, 36], face: [112, 98, 84], rim: [190, 170, 142], ambient: [9, 10, 17], fungi: ['#7fe0c0', '#ffd27f'], grade: [255, 226, 192] },
+    { name: { ko: '침수 회랑', en: 'Drowned Galleries' }, floor: [112, 142, 148], wallTop: [26, 42, 50], face: [70, 104, 112], rim: [150, 196, 198], ambient: [5, 11, 17], fungi: ['#6fb8ff', '#9affe0'], grade: [226, 244, 255] },
+    { name: { ko: '흑요 심장', en: 'Obsidian Heart' }, floor: [146, 120, 150], wallTop: [36, 24, 46], face: [98, 68, 112], rim: [196, 150, 206], ambient: [11, 5, 15], fungi: ['#ff7ad0', '#b48cff'], grade: [255, 224, 246] },
   ];
   D.BOSS_FLOORS = {
     3: { boss: 'boss1', name: { ko: '아귀의 식탁', en: "The Maw's Table" } },
@@ -254,7 +254,7 @@
     Ac('pilgrim', 'swirl', '순례자', 'Pilgrim', '잊힌 제단에 불꽃을 바쳤다', 'Offer flame at a forgotten altar'),
     Ac('phoenix', 'wing', '재에서', 'From the Ashes', '불사조의 깃으로 되살아났다', 'Rekindle with the Phoenix Feather'),
     Ac('gloom3', 'skull', '더 깊은 어스름', 'Deeper Gloom', '어스름 3단계 이상에서 하강을 완수했다', 'Complete a descent at Gloom 3 or higher'),
-    Ac('swift', 'speed', '불붙은 걸음', 'Burning Pace', '20분 안에 하강을 완수했다', 'Complete a descent in under 20 minutes'),
+    Ac('swift', 'speed', '불붙은 걸음', 'Burning Pace', '12분 안에 하강을 완수했다', 'Complete a descent in under 12 minutes'),
     Ac('familiar', 'glass', '익숙한 어둠', 'Familiar Dark', '열 번 꺼졌다', 'Let your flame die ten times'),
     Ac('devout', 'star', '성소의 주인', 'Keeper of the Sanctuary', '성소 강화 하나를 끝까지 올렸다', 'Max out any sanctuary upgrade'),
   ];

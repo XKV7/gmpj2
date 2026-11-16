@@ -14,10 +14,10 @@
   E.spawn = function (type, x, y, o) {
     o = o || {};
     const W = CD.W, def = D.ENEMIES[type], depth = W.run.depth, g = W.run.gloom;
-    const hpMul = def.boss ? 1 + 0.25 * g : (1 + 0.17 * (depth - 1)) * (1 + 0.15 * g);
+    const hpMul = def.boss ? 1 + 0.25 * g : (1 + 0.27 * (depth - 1)) * (1 + 0.15 * g);
     const e = {
       id: nextId++, type, def, x, y, vx: 0, vy: 0, kx: 0, ky: 0, r: def.r,
-      hp: def.hp * hpMul, maxHp: def.hp * hpMul, spd: def.spd, dmg: def.dmg * (1 + 0.06 * (depth - 1)),
+      hp: def.hp * hpMul, maxHp: def.hp * hpMul, spd: def.spd * (def.boss ? 1 : 1 + 0.02 * (depth - 1)), dmg: def.dmg * (1 + 0.09 * (depth - 1)),
       state: 'idle', t: 0, cd: U.rand(0.4, 1.4), sub: 0, la: 0,
       awake: !!o.awake, wakeR: 330, spawnT: o.spawnT || 0, spawnMax: o.spawnT || 0.001,
       flash: 0, face: U.rand(0, U.TAU), stun: 0, burnT: 0, burnDps: 0, burnTick: 0,
@@ -72,6 +72,7 @@
     const W = CD.W, p = W.player, L = W.level, S = W.eshots;
     for (let i = S.length - 1; i >= 0; i--) {
       const s = S[i];
+      if (!s) continue; // the list can shrink mid-loop (a flare or phase change clears shots)
       s.t += dt;
       s.x += s.vx * dt;
       s.y += s.vy * dt;
@@ -87,8 +88,11 @@
         }
       }
       if (dead) {
-        S[i] = S[S.length - 1];
-        S.pop();
+        const k = S.indexOf(s);
+        if (k >= 0) {
+          S[k] = S[S.length - 1];
+          S.pop();
+        }
       }
     }
   };
@@ -328,7 +332,7 @@
           seek(e, dt, W, p, ph2 ? 1.5 : 1);
           if ((e.t -= dt) <= 0) {
             const pat = nextPattern(e, W.enemies.length > 14 ? ['charge', 'burst'] : ['charge', 'burst', 'summon']);
-            if (pat === 'charge') { e.state = 'chargeWind'; e.t = 0.85; e.sub = ph2 ? 3 : 1; e.la = Math.atan2(dy, dx); lineHazard(W, e, 0.85); A.sfx('windup'); }
+            if (pat === 'charge') { e.state = 'chargeWind'; e.t = 0.85; e.sub = ph2 ? 2 : 1; e.la = Math.atan2(dy, dx); lineHazard(W, e, 0.85); A.sfx('windup'); }
             else if (pat === 'burst') { e.state = 'burst'; e.t = 0.5; e.sub = 0; }
             else { e.state = 'summon'; e.t = 0.7; A.sfx('roar'); FX.ring(e.x, e.y, 20, 240, 0.6, '#ff5a7a', 5); }
           }
@@ -642,6 +646,16 @@
       e.ky += Math.sin(a) * o.knock;
     }
     W.run.dmgDealt += dmg;
+    if (e.def.boss) {
+      // lords bleed embers as they are hurt, so a long duel feeds the lantern instead of starving it
+      e.shed = (e.shed || 0) + dmg;
+      const step = e.maxHp * 0.025;
+      while (e.shed >= step) {
+        e.shed -= step;
+        CD.World.dropEmber(e.x, e.y, 720);
+        CD.World.dropEmber(e.x, e.y, 720);
+      }
+    }
     if (e.hp <= 0) E.kill(e, o);
     return true;
   };

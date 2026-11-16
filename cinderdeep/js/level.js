@@ -73,7 +73,7 @@
       const tb = trigTable(n);
       for (let i = 0; i < n; i++) {
         let d = this.ray(x, y, tb.c[i], tb.s[i], R, mark);
-        if (d < R) d = Math.min(R, d + 17);
+        if (d < R) d = Math.min(R, d + 26);
         out[i * 2] = x + tb.c[i] * d;
         out[i * 2 + 1] = y + tb.s[i] * d;
       }
@@ -198,12 +198,17 @@
       return { x: ((i % this.w) + 0.5) * TS, y: (Math.floor(i / this.w) + 0.5) * TS };
     }
     // --- minimap ---
+    // Paints newly seen tiles into the minimap and into the "memory" mask the light map uses,
+    // so explored ground stays faintly visible after the lantern moves on.
     drawSeen() {
       if (!this.newSeen.length) return;
-      const g = this.mini.getContext('2d'), MS = this.ms;
+      const g = this.mini.getContext('2d'), m = this.mem.getContext('2d'), MS = this.ms;
+      m.fillStyle = this.memColor;
       for (const i of this.newSeen) {
+        const x = i % this.w, y = Math.floor(i / this.w);
         g.fillStyle = this.t[i] ? 'rgba(112,98,88,0.95)' : 'rgba(226,202,160,0.95)';
-        g.fillRect((i % this.w) * MS, Math.floor(i / this.w) * MS, MS, MS);
+        g.fillRect(x * MS, y * MS, MS, MS);
+        m.fillRect(x, y, 1, 1);
       }
       this.newSeen.length = 0;
     }
@@ -287,7 +292,7 @@
   }
 
   function generateCave(depth, rng) {
-    const w = 50 + Math.min(depth, 8) * 2, h = 38 + Math.min(depth, 8);
+    const w = 58 + Math.min(depth, 8) * 2, h = 42 + Math.round(Math.min(depth, 8) * 1.25);
     let L;
     for (let attempt = 0; attempt < 40; attempt++) {
       L = new Level(w, h);
@@ -311,9 +316,9 @@
     const startI = rng.pick(L.open);
     const start = { tx: startI % w, ty: Math.floor(startI / w) };
     const sd = L.bfs(start.tx, start.ty);
-    const far = L.open.filter((i) => sd[i] !== INF && sd[i] >= 13);
+    const far = L.open.filter((i) => sd[i] !== INF && sd[i] >= 16);
     const cands = far.length > 30 ? far : L.open.filter((i) => sd[i] !== INF && sd[i] >= 6);
-    const nBraz = depth === 1 ? 2 : depth >= 7 ? 4 : 3;
+    const nBraz = depth <= 5 ? 3 : 4;
     const chosen = [start];
     const braz = [];
     for (let i = 0; i < nBraz; i++) {
@@ -397,17 +402,11 @@
     g.fillRect(0, 0, c.width, c.height);
 
     // tonal variation
-    for (const i of L.floorList) {
-      const x = (i % w) * TS, y = Math.floor(i / w) * TS;
-      const v = rng();
-      g.fillStyle = v < 0.5 ? `rgba(0,0,0,${(0.5 - v) * 0.2})` : `rgba(255,255,255,${(v - 0.5) * 0.14})`;
-      g.fillRect(x, y, TS, TS);
-    }
-    for (let k = 0; k < (w * h) / 14; k++) {
-      const x = rng() * c.width, y = rng() * c.height, r = 50 + rng() * 150;
+    for (let k = 0; k < (w * h) / 7; k++) {
+      const x = rng() * c.width, y = rng() * c.height, r = 40 + rng() * 150;
       const gr = g.createRadialGradient(x, y, 0, x, y, r);
       const dark = rng() < 0.55;
-      gr.addColorStop(0, dark ? 'rgba(0,0,0,0.13)' : 'rgba(255,255,255,0.08)');
+      gr.addColorStop(0, dark ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.075)');
       gr.addColorStop(1, 'rgba(0,0,0,0)');
       g.fillStyle = gr;
       g.fillRect(x - r, y - r, r * 2, r * 2);
@@ -456,6 +455,31 @@
       if (solid(tx - 1, ty)) side(x, y, x + A, y, x, y, A, TS);
       if (solid(tx + 1, ty)) side(x + TS, y, x + TS - A, y, x + TS - A, y, A, TS);
     }
+    // concave corners get a rounded fillet (a body of radius 13 could never reach into them anyway)
+    const FR = 14;
+    for (const i of L.floorList) {
+      const tx = i % w, ty = Math.floor(i / w), x = tx * TS, y = ty * TS;
+      const n = solid(tx, ty - 1), s2 = solid(tx, ty + 1), wv = solid(tx - 1, ty), e = solid(tx + 1, ty);
+      const fillet = (cx, cy, sx, sy, top) => {
+        g.beginPath();
+        g.moveTo(cx, cy);
+        g.lineTo(cx + sx * FR, cy);
+        g.quadraticCurveTo(cx, cy, cx, cy + sy * FR);
+        g.closePath();
+        g.fillStyle = top ? U.rgb(pal.wallTop) : U.rgb(U.shade(pal.face, 0.55));
+        g.fill();
+        g.beginPath();
+        g.moveTo(cx + sx * FR, cy);
+        g.quadraticCurveTo(cx, cy, cx, cy + sy * FR);
+        g.strokeStyle = U.rgb(pal.rim, top ? 0.5 : 0.25);
+        g.lineWidth = 2.5;
+        g.stroke();
+      };
+      if (n && wv) fillet(x, y, 1, 1, false);
+      if (n && e) fillet(x + TS, y, -1, 1, false);
+      if (s2 && wv) fillet(x, y + TS, 1, -1, true);
+      if (s2 && e) fillet(x + TS, y + TS, -1, -1, true);
+    }
     // rock
     const R = 13, FACE = 15;
     for (let ty = 0; ty < h; ty++) for (let tx = 0; tx < w; tx++) {
@@ -483,7 +507,7 @@
         g.closePath();
       };
       path();
-      g.fillStyle = U.rgb(U.shade(pal.wallTop, 0.86 + rng() * 0.28));
+      g.fillStyle = U.rgb(U.shade(pal.wallTop, 0.95 + rng() * 0.1));
       g.fill();
       g.save();
       path();
@@ -558,6 +582,13 @@
       L.mini = document.createElement('canvas');
       L.mini.width = L.w * L.ms;
       L.mini.height = L.h * L.ms;
+      L.mem = document.createElement('canvas');
+      L.mem.width = L.w;
+      L.mem.height = L.h;
+      const mg = L.mem.getContext('2d');
+      mg.fillStyle = '#000';
+      mg.fillRect(0, 0, L.w, L.h);
+      L.memColor = U.rgb([pal.ambient[0] * 2.4 + 9, pal.ambient[1] * 2.4 + 9, pal.ambient[2] * 2.4 + 12]);
       return L;
     },
   };

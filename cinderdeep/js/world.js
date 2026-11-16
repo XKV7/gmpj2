@@ -50,7 +50,7 @@
     const L = (W.level = CD.Level.generate(d, (run.seed + d * 7919) >>> 0));
     W.enemies.length = W.shots.length = W.eshots.length = W.pickups.length = W.hazards.length = 0;
     FX.reset();
-    W.braziers = L.braziers.map((b) => ({ x: b.x, y: b.y, lit: L.boss, progress: 0, reserve: 40, pulses: 0, poly: null, pulseT: 2.5, anim: Math.random() * 9, map: null, tick: 0 }));
+    W.braziers = L.braziers.map((b) => ({ x: b.x, y: b.y, lit: L.boss, progress: 0, reserve: L.boss ? 22 : 40, pulses: 0, poly: null, pulseT: 2.5, anim: Math.random() * 9, map: null, tick: 0 }));
     W.urns = L.urns.map((u) => ({ x: u.x, y: u.y, r: 11, dead: false }));
     W.gate = { x: L.gate.x, y: L.gate.y, open: false, hidden: L.boss, anim: 0, map: null };
     W.shrine = L.shrine ? { x: L.shrine.x, y: L.shrine.y, used: false, anim: 0 } : null;
@@ -93,8 +93,8 @@
       centers.push(pt);
     }
     centers.forEach((pt, pi) => {
-      const types = D.composeGroup(2.2 + d * 0.95 + g * 0.6 + rng() * 1.5, d, rng);
-      const eliteAt = rng() < 0.04 + 0.035 * d + 0.05 * g ? types.findIndex((t) => t !== 'mite' && t !== 'nest') : -1;
+      const types = D.composeGroup(2.0 + d * 1.25 + g * 0.6 + rng() * 1.5, d, rng);
+      const eliteAt = rng() < 0.03 + 0.05 * d + 0.05 * g ? types.findIndex((t) => t !== 'mite' && t !== 'nest') : -1;
       types.forEach((t, k) => {
         const a = rng() * U.TAU, r = t === 'nest' ? 0 : rng() * TS * 1.2;
         let x = pt.x + Math.cos(a) * r, y = pt.y + Math.sin(a) * r;
@@ -474,7 +474,7 @@
     p.bob += dt * (4 + p.moving * 0.05);
 
     // flame + light
-    if (!locked && !(L.boss && !W.boss)) run.flame = Math.max(Math.min(run.flame, 5), run.flame - st.burnRate * dt);
+    if (!locked && !(L.boss && !W.boss)) run.flame = Math.max(Math.min(run.flame, 5), run.flame - st.burnRate * (1 + 0.1 * (run.depth - 1)) * dt);
     const frac = U.clamp(run.flame / st.maxFlame, 0, 1);
     let tr = (165 + 255 * Math.sqrt(frac)) * st.light;
     if (W.eclipseT > 0) tr *= 0.42;
@@ -668,7 +668,7 @@
       if (!b.lit) {
         if (d < 420 && !L.boss) CD.Game.hint('brazier');
         if (d < 118 && !p.dead) {
-          b.progress += dt / (L.boss ? 1.3 : 4.6);
+          b.progress += dt / (L.boss ? 1.3 : 5.2);
           b.tick -= dt;
           if (b.tick <= 0) { b.tick = 0.22; A.sfx('channel', { p: b.progress }); }
           if (Math.random() < 0.5) {
@@ -678,7 +678,7 @@
           if (!L.boss) {
             const th = [0.03, 0.36, 0.68];
             while (b.pulses < 3 && b.progress >= th[b.pulses]) {
-              spawnGroup(b.x, b.y, 250, 460, 2.0 + run.depth * 0.8 + run.gloom * 0.5);
+              spawnGroup(b.x, b.y, 250, 460, 1.8 + run.depth * 1.05 + run.gloom * 0.5);
               b.pulses++;
             }
           }
@@ -686,7 +686,7 @@
           else W.prompt = { text: CD.T('kindling'), progress: b.progress };
         } else if (b.progress > 0) b.progress = Math.max(0, b.progress - dt * 0.1);
       } else {
-        if (!L.boss && d < 150 && b.reserve > 0 && run.flame < st.maxFlame && !p.dead) {
+        if (d < 150 && b.reserve > 0 && run.flame < st.maxFlame && !p.dead) {
           const h = Math.min(b.reserve, 9 * dt, st.maxFlame - run.flame);
           run.flame += h;
           b.reserve -= h;
@@ -741,6 +741,7 @@
     const H = W.hazards;
     for (let i = H.length - 1; i >= 0; i--) {
       const h = H[i];
+      if (!h) continue; // a boss dying mid-loop clears every hazard
       h.t -= dt;
       if (h.arm !== undefined && h.arm > 0) h.arm -= dt;
       let gone = h.t <= 0 || (h.owner && h.owner.dead);
@@ -763,7 +764,7 @@
           }
         }
       }
-      if (gone) H.splice(i, 1);
+      if (gone && H[i] === h) H.splice(i, 1);
     }
   }
 
@@ -852,7 +853,7 @@
       W.dreadT -= dt;
       if (W.dreadT <= 0) {
         W.dreadT = Math.max(8, 19 - run.depth * 0.9 - run.gloom);
-        spawnGroup(p.x, p.y, p.lightR + 150, p.lightR + 560, 1.2 + run.depth * 0.45 + Math.min(W.floorTime / 60, 4) * 0.5);
+        spawnGroup(p.x, p.y, p.lightR + 150, p.lightR + 560, 1.0 + run.depth * 0.6 + Math.min(W.floorTime / 60, 4) * 0.6);
       }
     }
     A.setIntensity(U.clamp(W.awake / 7, 0, 1));
@@ -864,6 +865,8 @@
     run.ash += (3 + run.depth * 2) * W.stats.ashMul;
     enterDepth(run.depth + 1);
   }
+
+  World.enterDepth = enterDepth;
 
   // ---------- main update ----------
   World.update = function (dt) {
