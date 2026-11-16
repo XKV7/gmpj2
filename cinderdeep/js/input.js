@@ -29,7 +29,7 @@
     btnIds: {},
   });
   I.touchLayout = function () {
-    const w = window.innerWidth, h = window.innerHeight;
+    const w = CD.View.w, h = CD.View.h;
     return {
       dash: { x: w - 78, y: h - 150, r: 40 },
       flare: { x: w - 168, y: h - 74, r: 36 },
@@ -72,8 +72,8 @@
     });
 
     window.addEventListener('mousemove', (e) => {
-      I.mouse.x = e.clientX;
-      I.mouse.y = e.clientY;
+      I.mouse.x = e.clientX - CD.View.x;
+      I.mouse.y = e.clientY - CD.View.y;
       if (I.mode === 'pad' && (Math.abs(e.movementX) + Math.abs(e.movementY) > 3)) setMode('kbm');
     });
     canvas.addEventListener('mousedown', (e) => {
@@ -97,12 +97,12 @@
       if (I.onAny) I.onAny();
       const L = I.touchLayout();
       for (const t of e.changedTouches) {
-        const x = t.clientX, y = t.clientY;
+        const x = t.clientX - CD.View.x, y = t.clientY - CD.View.y;
         if (hit(L.pause, x, y)) { T.pause = true; continue; }
         if (hit(L.dash, x, y)) { T.dash = true; T.btnIds[t.identifier] = 1; continue; }
         if (hit(L.flare, x, y)) { T.flare = true; T.btnIds[t.identifier] = 1; continue; }
         if (I.canInteract && hit(L.interact, x, y)) { T.interact = true; T.btnIds[t.identifier] = 1; continue; }
-        if (x < window.innerWidth * 0.5 && T.moveId === null) {
+        if (x < CD.View.w * 0.5 && T.moveId === null) {
           T.moveId = t.identifier; T.mox = T.mx = x; T.moy = T.my = y;
         } else if (T.aimId === null) {
           T.aimId = t.identifier; T.aox = T.ax = x; T.aoy = T.ay = y;
@@ -112,8 +112,8 @@
     canvas.addEventListener('touchmove', (e) => {
       e.preventDefault();
       for (const t of e.changedTouches) {
-        if (t.identifier === T.moveId) { T.mx = t.clientX; T.my = t.clientY; }
-        if (t.identifier === T.aimId) { T.ax = t.clientX; T.ay = t.clientY; }
+        if (t.identifier === T.moveId) { T.mx = t.clientX - CD.View.x; T.my = t.clientY - CD.View.y; }
+        if (t.identifier === T.aimId) { T.ax = t.clientX - CD.View.x; T.ay = t.clientY - CD.View.y; }
       }
     }, { passive: false });
     const end = (e) => {

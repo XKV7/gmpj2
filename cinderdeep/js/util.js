@@ -4,6 +4,8 @@ window.CD = window.CD || {};
   const U = (CD.U = {});
   U.TAU = Math.PI * 2;
   U.TS = 48; // tile size in world units
+  // The on-screen rectangle of the game stage in CSS pixels (kept current by Render.resize).
+  CD.View = { x: 0, y: 0, w: window.innerWidth || 1280, h: window.innerHeight || 720 };
 
   U.clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   U.lerp = (a, b, t) => a + (b - a) * t;

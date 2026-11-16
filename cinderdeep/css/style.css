@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark; /* one deliberate look: a lantern in the dark */
   --panel: rgba(14, 12, 18, 0.9);
   --line: rgba(255, 205, 150, 0.2);
   --gold: #ffc56e;
@@ -15,9 +16,10 @@ html, body {
   font-family: var(--font); -webkit-user-select: none; user-select: none; overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
 }
-#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: none; }
+#stage { position: relative; width: 100%; height: 100%; overflow: hidden; background: #000; }
+#game { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: none; }
 body.menu-open #game { cursor: default; }
-#ui { position: fixed; inset: 0; display: none; }
+#ui { position: absolute; inset: 0; display: none; }
 #ui.on { display: flex; }
 .ic { display: block; flex: none; }
 button { font: inherit; color: inherit; }
@@ -27,7 +29,7 @@ button { font: inherit; color: inherit; }
 @keyframes rise { from { opacity: 0; transform: translateY(1.6rem) scale(0.96); } to { opacity: 1; transform: none; } }
 
 /* ---------- title ---------- */
-.title { padding: 6vh 4vw 2.5vh; overflow: hidden; }
+.title { padding: 6vh max(16px, 4vw) 2.5vh; overflow: hidden; }
 .logo { text-align: center; margin-top: 1vh; }
 .logo-kicker { letter-spacing: 0.55em; font-size: 0.85rem; color: var(--gold); opacity: 0.85; padding-left: 0.55em; }
 .logo h1 {
@@ -57,7 +59,7 @@ button { font: inherit; color: inherit; }
 .link:focus { outline: none; color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
 
 /* ---------- sheets ---------- */
-.sheet { justify-content: center; background: rgba(5, 5, 9, 0.82); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); padding: 3.2vh 4vw 2.4vh; }
+.sheet { justify-content: center; background: rgba(5, 5, 9, 0.82); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); padding: 3.2vh max(16px, 4vw) 2.4vh; }
 .sheet > * { width: min(100%, 64rem); }
 .sheet.narrow > * { width: min(100%, 42rem); }
 header { text-align: center; position: relative; margin-bottom: 1.1rem; flex: none; }
@@ -154,8 +156,8 @@ footer { display: flex; gap: 0.9rem; justify-content: center; padding-top: 1.1re
 .danger .btn { color: #ff9a8a; border-color: rgba(255, 120, 100, 0.35); }
 
 /* ---------- pause / choice / result / dialog ---------- */
-.pause, .choice, .result, .dialog { background: rgba(4, 4, 8, 0.66); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); justify-content: center; padding: 3vh 4vw; }
-.pause { flex-direction: row; gap: 1.2rem; align-items: stretch; justify-content: center; padding: 10vh 4vw; }
+.pause, .choice, .result, .dialog { background: rgba(4, 4, 8, 0.66); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); justify-content: center; padding: 3vh max(16px, 4vw); }
+.pause { flex-direction: row; gap: 1.2rem; align-items: stretch; justify-content: center; padding: 10vh max(16px, 4vw); }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 0.8rem; padding: 1.6rem 1.8rem; box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.6); }
 .pause .panel { display: flex; flex-direction: column; align-items: center; min-height: 0; }
 .pause h2 { font-size: 1.7rem; }
@@ -189,7 +191,7 @@ body[data-input="touch"] kbd, body[data-input="pad"] kbd { display: none; }
 .result footer { margin-top: 1.2rem; }
 .dialog .panel { max-width: 30rem; text-align: center; line-height: 1.6; }
 
-#toasts { position: fixed; top: 1rem; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; pointer-events: none; z-index: 5; }
+#toasts { position: absolute; top: 1rem; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 0.5rem; pointer-events: none; z-index: 5; }
 .toast { display: flex; gap: 0.8rem; align-items: center; background: var(--panel); border: 1px solid rgba(255, 197, 110, 0.5); border-radius: 0.7rem; padding: 0.6rem 1.2rem 0.6rem 0.7rem; box-shadow: 0 0.6rem 2rem rgba(0, 0, 0, 0.6), 0 0 1.5rem rgba(255, 150, 60, 0.25); animation: rise 0.4s both; transition: opacity 0.6s, transform 0.6s; }
 .toast.out { opacity: 0; transform: translateY(-1rem); }
 .toast small { display: block; color: var(--gold); letter-spacing: 0.2em; font-size: 0.7rem; }

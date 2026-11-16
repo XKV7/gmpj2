@@ -16,18 +16,25 @@
     lctx = lcan.getContext('2d', { alpha: false });
     R.resize();
     window.addEventListener('resize', R.resize);
+    if (window.ResizeObserver) new ResizeObserver(R.resize).observe(canvas.parentElement);
   };
   R.resize = function () {
+    const V0 = CD.View, rect = canvas.parentElement.getBoundingClientRect();
+    V0.x = rect.left;
+    V0.y = rect.top;
+    V0.w = Math.max(1, rect.width);
+    V0.h = Math.max(1, rect.height);
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    let cw = Math.max(320, window.innerWidth) * dpr, ch = Math.max(240, window.innerHeight) * dpr;
+    let cw = Math.max(320, V0.w) * dpr, ch = Math.max(240, V0.h) * dpr;
     const m = Math.min(cw, ch);
     if (m > 1080) { cw *= 1080 / m; ch *= 1080 / m; }
     cw = Math.round(cw);
     ch = Math.round(ch);
+    if (cw === R.cw && ch === R.ch) return;
     canvas.width = R.cw = cw;
     canvas.height = R.ch = ch;
     // world units across the short side of the screen; small phones get a closer view
-    const V = U.clamp(Math.min(window.innerWidth, window.innerHeight) * 1.4, 540, 720);
+    const V = U.clamp(Math.min(V0.w, V0.h) * 1.4, 540, 720);
     R.scale = Math.min(cw, ch) / V;
     R.viewW = cw / R.scale;
     R.viewH = ch / R.scale;
@@ -35,7 +42,7 @@
     lh = lcan.height = Math.ceil(ch / LS);
   };
   R.screenToWorld = function (cx, cy) {
-    return { x: R.left + (cx / window.innerWidth) * R.viewW, y: R.top + (cy / window.innerHeight) * R.viewH };
+    return { x: R.left + (cx / CD.View.w) * R.viewW, y: R.top + (cy / CD.View.h) * R.viewH };
   };
 
   function glowSprite(color) {

@@ -99,10 +99,10 @@
     const I = CD.Input;
     const dt = U.clamp(R.t - H.last, 0, 0.1);
     H.last = R.t;
-    const minCss = Math.min(window.innerWidth, window.innerHeight);
+    const minCss = Math.min(CD.View.w, CD.View.h);
     const hs = U.clamp(620 / minCss, 1, 1.7);
     const s = R.scale * hs, hw = R.viewW / hs, hh = R.viewH / hs;
-    const cssU = hw / window.innerWidth; // hud units per CSS pixel
+    const cssU = hw / CD.View.w; // hud units per CSS pixel
     const touch = I.mode === 'touch';
     const run = W.run, st = W.stats, p = W.player, L = W.level, lan = D.LANTERNS[run.lantern];
     const narrow = hw < 780, portrait = hw < hh;
@@ -322,7 +322,7 @@
 
     // ---- touch controls ----
     if (touch) {
-      g.setTransform(R.cw / window.innerWidth, 0, 0, R.ch / window.innerHeight, 0, 0);
+      g.setTransform(R.cw / CD.View.w, 0, 0, R.ch / CD.View.h, 0, 0);
       const T = I.touch, Ly = I.touchLayout();
       const stick = (ox, oy, tx, ty, live) => {
         g.beginPath(); g.arc(ox, oy, 56, 0, TAU);
@@ -335,7 +335,7 @@
         g.fillStyle = live ? 'rgba(255,220,170,0.4)' : 'rgba(255,255,255,0.1)'; g.fill();
       };
       if (T.moveId !== null) stick(T.mox, T.moy, T.mx, T.my, true);
-      else stick(96, window.innerHeight - 104, 96, window.innerHeight - 104, false);
+      else stick(96, CD.View.h - 104, 96, CD.View.h - 104, false);
       if (T.aimId !== null) stick(T.aox, T.aoy, T.ax, T.ay, true);
       const btn = (b, ic, col, prog, on) => {
         g.beginPath(); g.arc(b.x, b.y, b.r, 0, TAU);
