@@ -7,8 +7,9 @@
   const desk = window.cinderdeepDesktop || null;
   CD.Platform = {
     isDesktop: !!desk,
-    isFullscreen: () => !!document.fullscreenElement,
+    isFullscreen: () => (desk && desk.isFullscreen ? desk.isFullscreen() : !!document.fullscreenElement),
     setFullscreen(on) {
+      if (desk && desk.setFullscreen) { desk.setFullscreen(on); return; }
       try {
         if (on) document.documentElement.requestFullscreen().catch(() => {});
         else if (document.fullscreenElement) document.exitFullscreen();
@@ -204,6 +205,7 @@
       CD.Audio.suspend(document.hidden);
       if (document.hidden && Game.state === 'play' && !CD.Debug.bot) Game.pause();
     });
+    if (CD.Platform.isDesktop && CD.Save.data.settings.windowed) CD.Platform.setFullscreen(false);
     CD.Audio.setScene('menu');
     CD.UI.open('title');
     CD.Debug.boot();

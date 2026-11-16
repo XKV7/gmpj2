@@ -280,8 +280,11 @@
     },
     toggle(k) {
       const s = save().settings;
-      if (k === 'fullscreen') CD.Platform.setFullscreen(!CD.Platform.isFullscreen());
-      else s[k] = !s[k];
+      if (k === 'fullscreen') {
+        const on = !CD.Platform.isFullscreen();
+        CD.Platform.setFullscreen(on);
+        s.windowed = !on;
+      } else s[k] = !s[k];
       CD.Save.save();
       CD.Audio.sfx('uiSel');
       setTimeout(render, k === 'fullscreen' ? 250 : 0);

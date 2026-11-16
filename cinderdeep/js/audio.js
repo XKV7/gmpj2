@@ -79,9 +79,25 @@
   A.applyVolumes = function () {
     if (!ac) return;
     const s = CD.Save.data.settings;
-    master.gain.value = s.master;
+    master.gain.value = s.master * 1.8; // make-up gain; the compressor on the master bus guards the peaks
     sfxBus.gain.value = s.sfx;
     musicBus.gain.value = s.music * 0.9;
+  };
+
+  // Peak output level over the last analysis window (0..1+). Used by the automated mix check.
+  let meter = null;
+  A.peak = function () {
+    if (!ac) return 0;
+    if (!meter) {
+      meter = ac.createAnalyser();
+      meter.fftSize = 2048;
+      master.connect(meter);
+    }
+    const buf = new Float32Array(meter.fftSize);
+    meter.getFloatTimeDomainData(buf);
+    let m = 0;
+    for (let i = 0; i < buf.length; i++) m = Math.max(m, Math.abs(buf[i]));
+    return m;
   };
 
   A.suspend = function (on) {

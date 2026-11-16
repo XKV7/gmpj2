@@ -50,6 +50,9 @@
   I.init = function (cv) {
     canvas = cv;
     document.body.dataset.input = 'kbm';
+    // phones and tablets start in touch mode so the very first hint and HUD layout are right
+    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(any-pointer: fine)').matches) setMode('touch');
+    document.addEventListener('touchstart', () => setMode('touch'), { passive: true, capture: true });
     window.addEventListener('keydown', (e) => {
       if (e.repeat) {
         if (NAV_KEYS[e.code] && NAV_KEYS[e.code] !== 'confirm' && NAV_KEYS[e.code] !== 'back' && I.onNav) I.onNav(NAV_KEYS[e.code], e);

@@ -1,0 +1,36 @@
+{
+  "name": "cinderdeep",
+  "productName": "CINDERDEEP",
+  "version": "1.0.0",
+  "description": "CINDERDEEP — The Last Lantern. A roguelite where your flame is your life, your sight and your weapon.",
+  "private": true,
+  "main": "desktop/main.js",
+  "scripts": {
+    "build": "node tools/build.js",
+    "test": "node tools/test-flow.js && node tools/test-gamepad.js && node tools/test-soak.js",
+    "test:flow": "node tools/test-flow.js",
+    "test:soak": "node tools/test-soak.js",
+    "balance": "node tools/balance.js",
+    "desktop": "electron . --windowed",
+    "desktop:smoke": "electron . --smoke --no-sandbox",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "playwright": "^1.48.0"
+  },
+  "optionalDependencies": {
+    "steamworks.js": "^0.4.0"
+  },
+  "build": {
+    "appId": "com.cinderdeep.game",
+    "productName": "CINDERDEEP",
+    "directories": { "output": "release" },
+    "files": ["index.html", "css/**", "js/**", "desktop/**", "!js/debug.js.map"],
+    "asarUnpack": ["node_modules/steamworks.js/**"],
+    "win": { "target": ["dir", "zip"] },
+    "linux": { "target": ["dir", "tar.gz"], "category": "Game" },
+    "mac": { "target": ["dir"], "category": "public.app-category.action-games" }
+  }
+}

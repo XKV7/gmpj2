@@ -105,6 +105,10 @@
     const cssU = hw / window.innerWidth; // hud units per CSS pixel
     const touch = I.mode === 'touch';
     const run = W.run, st = W.stats, p = W.player, L = W.level, lan = D.LANTERNS[run.lantern];
+    const narrow = hw < 780, portrait = hw < hh;
+    const pauseZone = touch ? 66 * cssU : 0;
+    const mapW = L.boss ? 0 : Math.min(176, hw * (portrait ? 0.3 : 0.2));
+    const mapBelow = touch && portrait; // on a phone held upright the map sits under the pause button
     g.setTransform(s, 0, 0, s, 0, 0);
     g.globalCompositeOperation = 'source-over';
     g.globalAlpha = 1;
@@ -123,7 +127,9 @@
     g.strokeStyle = low ? `rgba(255,${90 + pulse * 80},70,0.9)` : LINE;
     g.lineWidth = 1.6; g.stroke();
     icon(g, 'flame', x0 + 23, y0 + 23, 20 + frac * 8 + Math.sin(R.t * 8) * 0.8, low ? '#ff6a4a' : lan.color);
-    const bx = x0 + 54, by = y0 + 7, bh = 16, bw = Math.min(U.clamp(150 + st.maxFlame * 1.1, 220, 360), hw * 0.44);
+    const bx = x0 + 54, by = y0 + 7, bh = 16;
+    const room = narrow ? hw - bx - 78 - pauseZone - (mapBelow || !mapW ? 0 : mapW + 26) : hw * 0.44;
+    const bw = Math.max(90, Math.min(U.clamp(150 + st.maxFlame * 1.1, 220, 360), room));
     rr(g, bx, by, bw, bh, 5);
     g.fillStyle = PANEL; g.fill();
     g.save();
@@ -176,6 +182,11 @@
     icon(g, 'ash', cx, y2, 15, '#cfd6e6');
     text(g, String(Math.floor(run.ash)), cx + 11, y2 + 0.5, 13, '#dfe5f2', 'left', 700, true);
     if (run.phoenix > 0) icon(g, 'wing', cx + 46, y2, 16, '#ffc04d');
+    if (narrow && !L.boss) {
+      // no room for a centred header: objectives ride along the cooldown row
+      let ox = cx + (run.phoenix > 0 ? 72 : 50);
+      for (const b of W.braziers) { icon(g, 'brazier', ox, y2, 16, b.lit ? '#ffb347' : 'rgba(255,255,255,0.25)'); ox += 20; }
+    }
 
     // ---- boons ----
     const ids = Object.keys(run.boons);
@@ -199,8 +210,8 @@
     if (boss && !boss.dead && boss.spawnT <= 0) {
       const bf = U.clamp(boss.hp / boss.maxHp, 0, 1);
       H.bossGhost = bf >= H.bossGhost ? bf : Math.max(bf, H.bossGhost - dt * 0.2);
-      const w = Math.min(520, hw * 0.46), x = mid - w / 2, y = 40, col = CD.Enemies.EYE[boss.type];
-      text(g, CD.L(boss.def.name), mid, 22, 17, '#f3e7d2', 'center', 700, true, CD.FONT_DISPLAY);
+      const w = narrow ? Math.min(520, hw - 40) : Math.min(520, hw * 0.46), x = mid - w / 2, y = narrow ? 104 : 40, col = CD.Enemies.EYE[boss.type];
+      text(g, CD.L(boss.def.name), mid, y - 18, 17, '#f3e7d2', 'center', 700, true, CD.FONT_DISPLAY);
       rr(g, x, y, w, 12, 4);
       g.fillStyle = PANEL; g.fill();
       g.fillStyle = 'rgba(255,255,255,0.55)';
@@ -211,7 +222,8 @@
       g.fillRect(x + 2, y + 7, (w - 4) * bf, 3);
       rr(g, x, y, w, 12, 4);
       g.strokeStyle = LINE; g.lineWidth = 1.3; g.stroke();
-    } else {
+    } else if (narrow) H.bossGhost = 1;
+    else {
       H.bossGhost = 1;
       text(g, `${CD.T('depth')} ${run.depth}  ·  ${D.depthName(run.depth)}`, mid, 21, 13.5, 'rgba(243,231,210,0.86)', 'center', 600, true);
       if (!L.boss) {
@@ -224,12 +236,12 @@
     }
 
     // ---- minimap + clock ----
-    const offY = touch ? 64 * cssU : 0;
     if (!L.boss) {
-      const mw = Math.min(176, hw * 0.24), mh = (mw * L.h) / L.w;
-      drawMap(g, W, hw - mw - 18, 18 + offY, mw, mh, false);
-      text(g, U.fmtTime(run.time), hw - 18, 18 + offY + mh + 18, 12.5, 'rgba(243,231,210,0.75)', 'right', 600, true);
-    } else text(g, U.fmtTime(run.time), hw - 18 - (touch ? 60 * cssU : 0), 24, 12.5, 'rgba(243,231,210,0.75)', 'right', 600, true);
+      const mw = mapW, mh = (mw * L.h) / L.w;
+      const mx = hw - mw - 18 - (mapBelow ? 0 : pauseZone), my = 18 + (mapBelow ? pauseZone : 0);
+      drawMap(g, W, mx, my, mw, mh, false);
+      text(g, U.fmtTime(run.time), mx + mw, my + mh + 18, 12.5, 'rgba(243,231,210,0.75)', 'right', 600, true);
+    } else text(g, U.fmtTime(run.time), hw - 18 - pauseZone, 24, 12.5, 'rgba(243,231,210,0.75)', 'right', 600, true);
 
     // ---- floor card / banner ----
     const card = W.card;
@@ -255,7 +267,8 @@
     }
 
     // ---- prompt + tutorial hint ----
-    const py0 = hh - (touch ? 150 : 96);
+    // on touch the thumbs own the bottom corners: landscape keeps text bottom-centre, portrait lifts it above the sticks
+    const py0 = touch ? (portrait ? hh * 0.66 : hh - 62) : hh - 96;
     if (W.prompt) {
       const pr = W.prompt;
       let label = pr.text;
@@ -278,15 +291,22 @@
       else {
         g.globalAlpha = a;
         g.font = `600 14.5px ${CD.FONT}`;
-        const w = Math.min(hw - 40, g.measureText(hint.text).width + 44), y = py0 - 52;
-        rr(g, mid - w / 2, y - 17, w, 34, 8);
+        // wrap to the available width
+        const maxW = Math.min(touch && !portrait ? hw - 430 * cssU : hw - 56, 620), lines = [];
+        let line = '';
+        for (const word of hint.text.split(' ')) {
+          const tryLine = line ? line + ' ' + word : word;
+          if (line && g.measureText(tryLine).width > maxW) { lines.push(line); line = word; }
+          else line = tryLine;
+        }
+        lines.push(line);
+        const tw = Math.max(...lines.map((l) => g.measureText(l).width));
+        const w = tw + 44, h = 16 + lines.length * 20;
+        const y = touch && !portrait ? hh - 14 - h : py0 - 40 - h;
+        rr(g, mid - w / 2, y, w, h, 8);
         g.fillStyle = 'rgba(12,10,15,0.82)'; g.fill();
         g.strokeStyle = 'rgba(255,197,110,0.5)'; g.lineWidth = 1.2; g.stroke();
-        g.save();
-        rr(g, mid - w / 2, y - 17, w, 34, 8);
-        g.clip();
-        text(g, hint.text, mid, y + 0.5, 14.5, '#f6ecd9', 'center', 600);
-        g.restore();
+        lines.forEach((l, i) => text(g, l, mid, y + 18.5 + i * 20, 14.5, '#f6ecd9', 'center', 600));
         g.globalAlpha = 1;
       }
     }

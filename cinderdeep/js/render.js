@@ -321,7 +321,16 @@
         for (let i = 0; i < 6; i++) dot(r * (0.62 + (i % 3) * 0.13), (i < 3 ? 1 : -1) * r * (0.12 + (i % 3) * 0.1), 2.6, eye, 1);
         break;
       case 'boss3': {
+        glow(g, e.x, e.y, r * 3.4, '#6a3cff', 0.22 + 0.06 * Math.sin(e.anim * 2));
         glow(g, e.x, e.y - r * 0.35, r * 1.5, '#b48cff', 0.35 + 0.15 * Math.sin(e.anim * 3));
+        g.strokeStyle = 'rgba(190,150,255,' + 0.45 * a + ')';
+        g.lineWidth = 1.5;
+        g.setLineDash([10, 14]);
+        g.lineDashOffset = -e.anim * 30;
+        g.beginPath();
+        g.arc(e.x, e.y, r * 1.7, 0, TAU);
+        g.stroke();
+        g.setLineDash([]);
         g.strokeStyle = 'rgba(255,255,255,' + 0.75 * a + ')';
         g.lineWidth = 2.5;
         g.beginPath();
@@ -340,7 +349,7 @@
     return { x: p.x + Math.cos(p.aim) * d, y: p.y + Math.sin(p.aim) * d };
   }
 
-  function drawPlayer(g, p) {
+  function drawPlayer(g, p, trim) {
     if (p.dead && p.deathT > 0.5) {
       g.fillStyle = '#1c2438';
       g.strokeStyle = '#5a6a8a';
@@ -374,6 +383,13 @@
     g.beginPath();
     g.arc(Math.cos(p.aim) * 3.5, Math.sin(p.aim) * 3.5, 7, 0, TAU);
     g.fill();
+    g.strokeStyle = trim;
+    g.lineWidth = 2;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.arc(Math.cos(p.aim) * 3.5, Math.sin(p.aim) * 3.5, 7, p.aim - 1.25, p.aim + 1.25);
+    g.stroke();
+    g.lineCap = 'butt';
     // arm + lantern frame
     const d = 17 - p.recoil, lx = Math.cos(p.aim) * d, ly = Math.sin(p.aim) * d;
     g.strokeStyle = '#2b3854';
@@ -583,7 +599,7 @@
     }
     g.globalAlpha = 1;
     for (const e of W.enemies) if (!e.dead && inView(e.x, e.y, e.r * 3 + 40)) drawEnemy(g, e);
-    drawPlayer(g, p);
+    drawPlayer(g, p, col);
 
     // light
     drawLights(W);

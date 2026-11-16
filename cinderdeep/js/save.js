@@ -16,7 +16,7 @@
       codex: { enemies: {}, boons: {} },
       ach: {},
       hints: {},
-      settings: { master: 0.8, music: 0.6, sfx: 0.85, shake: 1, dmgNum: true, autoAim: true, lang: null, fullscreen: false },
+      settings: { master: 0.8, music: 0.6, sfx: 0.85, shake: 1, dmgNum: true, autoAim: true, lang: null, windowed: false },
     };
   }
 
